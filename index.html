@@ -307,9 +307,12 @@
         
         .file-list {
             margin-top: 20px;
-            display: grid;
+            display: flex;
+            flex-direction: column;
             gap: 12px;
-            grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+            max-height: 300px;
+            overflow-y: auto;
+            padding-right: 8px;
         }
         
         .file-item {
@@ -447,75 +450,89 @@
             opacity: 0.8;
         }
         
-        .device-list {
-            margin-top: 16px;
-            display: grid;
-            gap: 12px;
-            grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
-        }
-
-        .device-item {
-            background-color: var(--bg-color);
-            border: 1px solid var(--border-color);
-            border-radius: 12px;
-            padding: 16px;
-            cursor: pointer;
-            transition: all 0.2s ease;
+        .file-actions-container {
             display: flex;
+            justify-content: space-between;
             align-items: center;
-            gap: 12px;
+            margin-top: 16px;
         }
-
-        .device-item:hover {
-            transform: translateY(-2px);
-            border-color: var(--accent-color);
-            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+        
+        .batch-actions {
+            display: flex;
+            gap: 8px;
         }
-
-        .device-icon {
-            width: 32px;
-            height: 32px;
-            background-color: var(--accent-color);
-            mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Crect x='2' y='3' width='20' height='14' rx='2' ry='2'%3E%3C/rect%3E%3Cline x1='8' y1='21' x2='16' y2='21'%3E%3C/line%3E%3Cline x1='12' y1='17' x2='12' y2='21'%3E%3C/line%3E%3C/svg%3E");
-            mask-repeat: no-repeat;
-            mask-position: center;
-            flex-shrink: 0;
-        }
-
-        .device-info {
-            flex-grow: 1;
-        }
-
-        .device-name {
-            font-size: 14px;
-            font-weight: 500;
-            color: var(--text-color);
-            margin-bottom: 4px;
-        }
-
-        .device-ip {
-            font-size: 12px;
+        
+        .file-count {
             color: var(--text-secondary);
+            font-size: 14px;
+            margin-left: auto;
         }
-
-        .device-status {
-            width: 8px;
-            height: 8px;
-            border-radius: 50%;
+        
+        .file-action-buttons {
+            display: flex;
+            gap: 8px;
+        }
+        
+        .file-action-btn {
+            padding: 6px 12px;
+            font-size: 13px;
+            border-radius: 6px;
+        }
+        
+        .retry-btn {
+            background-color: var(--warning-color);
+        }
+        
+        .delete-btn {
+            background-color: var(--error-color);
+        }
+        
+        .delete-all-btn {
+            background-color: transparent;
+            color: var(--error-color);
+            border: 1px solid var(--error-color);
+        }
+        
+        .delete-all-btn:hover {
+            background-color: var(--error-color);
+            color: white;
+        }
+        
+        .send-all-btn {
             background-color: var(--success-color);
-            position: relative;
         }
-
-        .device-status::after {
-            content: '';
-            position: absolute;
-            top: -2px;
-            left: -2px;
-            right: -2px;
-            bottom: -2px;
-            border-radius: 50%;
-            background: var(--success-color);
-            opacity: 0.2;
+        
+        .send-all-btn:hover {
+            background-color: #0d9488;
+        }
+        
+        /* 滚动条样式 */
+        .file-list::-webkit-scrollbar {
+            width: 6px;
+        }
+        
+        .file-list::-webkit-scrollbar-track {
+            background: var(--bg-color);
+            border-radius: 10px;
+        }
+        
+        .file-list::-webkit-scrollbar-thumb {
+            background: var(--border-color);
+            border-radius: 10px;
+        }
+        
+        .file-list::-webkit-scrollbar-thumb:hover {
+            background: var(--text-secondary);
+        }
+        
+        .empty-list {
+            text-align: center;
+            padding: 32px 16px;
+            color: var(--text-secondary);
+            font-size: 14px;
+            background-color: var(--bg-color);
+            border-radius: 12px;
+            border: 1px dashed var(--border-color);
         }
         
         @media (max-width: 768px) {
@@ -587,22 +604,23 @@
                     <div class="upload-area" id="uploadArea">
                         <div class="upload-icon"></div>
                         <div class="upload-text">拖拽文件到这里或点击上传</div>
-                        <div class="upload-subtext">支持任意类型文件</div>
-                        <input type="file" id="fileInput" style="display: none;" onchange="handleFileSelect(event)">
+                        <div class="upload-subtext">支持批量上传多个文件</div>
+                        <input type="file" id="fileInput" style="display: none;" onchange="handleFileSelect(event)" multiple>
                     </div>
                 </div>
                 
-                <div class="file-list" id="fileList"></div>
-            </div>
-
-            <div class="card">
-                <h2>可用设备</h2>
-                <div class="network-info">
-                    <span class="wifi-icon"></span>
-                    <span>已自动扫描同一网络下的可用设备</span>
+                <div class="file-actions-container">
+                    <div class="batch-actions">
+                        <button id="sendAllBtn" class="send-all-btn" onclick="sendAllFiles()" disabled>发送全部</button>
+                        <button id="deleteAllBtn" class="delete-all-btn" onclick="deleteAllFiles()" disabled>清空列表</button>
+                    </div>
+                    <div class="file-count" id="fileCount">0 个文件</div>
                 </div>
-                <div class="device-list" id="deviceList">
-                    <!-- 设备列表将通过 JavaScript 动态添加 -->
+                
+                <div class="file-list" id="fileList">
+                    <div class="empty-list" id="emptyList">
+                        尚未选择任何文件
+                    </div>
                 </div>
             </div>
         </div>
@@ -613,7 +631,7 @@
     <script>
         let peerConnection = null;
         let dataChannel = null;
-        let selectedFile = null;
+        let fileQueue = []; // 文件队列
         const configuration = {
             iceServers: [
                 { urls: 'stun:stun.l.google.com:19302' }
@@ -820,133 +838,336 @@
 
         // 处理文件选择
         function handleFileSelect(event) {
-            selectedFile = event.target.files[0];
-            if (selectedFile) {
-                addFileToList(selectedFile);
+            const newFiles = Array.from(event.target.files);
+            if (newFiles.length > 0) {
+                // 添加新文件到文件队列
+                for (const file of newFiles) {
+                    addFileToQueue(file);
+                }
+                updateFileCount();
             }
         }
 
-        // 添加文件到列表
-        function addFileToList(file) {
-            const fileSize = formatFileSize(file.size);
-            const fileList = document.getElementById('fileList');
+        // 添加文件到队列
+        function addFileToQueue(file) {
+            const fileId = 'file-' + Date.now() + '-' + Math.random().toString(36).substring(2, 9);
+            fileQueue.push({
+                id: fileId,
+                file: file,
+                status: 'pending', // pending, sending, success, error
+                progress: 0
+            });
             
-            const fileItem = document.createElement('div');
-            fileItem.className = 'file-item';
-            fileItem.innerHTML = `
+            renderFile(fileQueue[fileQueue.length - 1]);
+            updateSendAllButton();
+        }
+        
+        // 更新文件计数
+        function updateFileCount() {
+            const countElem = document.getElementById('fileCount');
+            countElem.textContent = `${fileQueue.length} 个文件`;
+            
+            // 显示或隐藏空列表提示
+            const emptyList = document.getElementById('emptyList');
+            if (fileQueue.length > 0) {
+                emptyList.style.display = 'none';
+            } else {
+                emptyList.style.display = 'block';
+            }
+            
+            // 更新批量操作按钮状态
+            document.getElementById('deleteAllBtn').disabled = fileQueue.length === 0;
+        }
+        
+        // 更新发送全部按钮状态
+        function updateSendAllButton() {
+            const pendingFiles = fileQueue.filter(item => item.status === 'pending' || item.status === 'error');
+            document.getElementById('sendAllBtn').disabled = pendingFiles.length === 0 || !dataChannel || dataChannel.readyState !== 'open';
+        }
+
+        // 渲染文件到列表
+        function renderFile(fileItem) {
+            const fileList = document.getElementById('fileList');
+            const fileSize = formatFileSize(fileItem.file.size);
+            
+            const fileElem = document.createElement('div');
+            fileElem.className = 'file-item';
+            fileElem.id = fileItem.id;
+            fileElem.innerHTML = `
                 <div class="file-header">
                     <div class="file-icon"></div>
                     <div class="file-info">
-                        <div class="file-name">${file.name}</div>
+                        <div class="file-name">${fileItem.file.name}</div>
                         <div class="file-size">${fileSize}</div>
                     </div>
                 </div>
                 <div class="file-progress">
-                    <div class="progress-bar" style="width: 0%"></div>
+                    <div class="progress-bar" style="width: ${fileItem.progress}%"></div>
                 </div>
-                <div class="file-status">准备发送</div>
-                <button onclick="sendFile()" id="sendButton">发送文件</button>
+                <div class="file-status">等待发送</div>
+                <div class="file-action-buttons">
+                    <button class="file-action-btn" onclick="sendSingleFile('${fileItem.id}')" ${!dataChannel || dataChannel.readyState !== 'open' ? 'disabled' : ''}>发送</button>
+                    <button class="file-action-btn delete-btn" onclick="deleteFile('${fileItem.id}')">删除</button>
+                </div>
             `;
             
-            fileList.innerHTML = ''; // 清除之前的文件
-            fileList.appendChild(fileItem);
-            showStatus(`已选择文件: ${file.name}`, 'success');
+            fileList.appendChild(fileElem);
         }
 
-        // 设置拖拽上传
-        const uploadArea = document.getElementById('uploadArea');
-
-        uploadArea.addEventListener('click', () => {
-            document.getElementById('fileInput').click();
-        });
-
-        uploadArea.addEventListener('dragover', (e) => {
-            e.preventDefault();
-            uploadArea.classList.add('drag-over');
-        });
-
-        uploadArea.addEventListener('dragleave', () => {
-            uploadArea.classList.remove('drag-over');
-        });
-
-        uploadArea.addEventListener('drop', (e) => {
-            e.preventDefault();
-            uploadArea.classList.remove('drag-over');
-            
-            const files = e.dataTransfer.files;
-            if (files.length > 0) {
-                selectedFile = files[0];
-                addFileToList(selectedFile);
+        // 删除单个文件
+        function deleteFile(fileId) {
+            const index = fileQueue.findIndex(item => item.id === fileId);
+            if (index !== -1) {
+                fileQueue.splice(index, 1);
+                
+                // 从DOM中移除
+                const fileElem = document.getElementById(fileId);
+                if (fileElem) {
+                    fileElem.remove();
+                }
+                
+                updateFileCount();
+                updateSendAllButton();
             }
-        });
+        }
+        
+        // 删除所有文件
+        function deleteAllFiles() {
+            fileQueue = [];
+            document.getElementById('fileList').innerHTML = `
+                <div class="empty-list" id="emptyList">
+                    尚未选择任何文件
+                </div>
+            `;
+            updateFileCount();
+            updateSendAllButton();
+            showStatus('已清空文件列表', 'warning');
+        }
 
-        // 更新发送文件函数
-        function sendFile() {
-            if (!selectedFile || !dataChannel || dataChannel.readyState !== 'open') {
+        // 发送单个文件
+        function sendSingleFile(fileId) {
+            const fileItem = fileQueue.find(item => item.id === fileId);
+            if (!fileItem || !dataChannel || dataChannel.readyState !== 'open') {
                 showStatus('无法发送文件', 'error');
                 return;
             }
+            
+            sendFile(fileItem);
+        }
+        
+        // 发送所有待发送文件
+        function sendAllFiles() {
+            if (!dataChannel || dataChannel.readyState !== 'open') {
+                showStatus('无法发送文件，连接未建立', 'error');
+                return;
+            }
+            
+            const pendingFiles = fileQueue.filter(item => item.status === 'pending' || item.status === 'error');
+            if (pendingFiles.length === 0) {
+                showStatus('没有待发送的文件', 'warning');
+                return;
+            }
+            
+            showStatus(`开始批量发送 ${pendingFiles.length} 个文件...`, 'success');
+            
+            // 按顺序发送所有文件
+            sendNextFile(pendingFiles);
+        }
+        
+        // 按顺序发送文件队列中的下一个文件
+        function sendNextFile(pendingFiles, index = 0) {
+            if (index >= pendingFiles.length) {
+                showStatus('所有文件发送完成', 'success');
+                return;
+            }
+            
+            const fileItem = pendingFiles[index];
+            
+            // 添加发送完成的回调，继续发送下一个文件
+            const onComplete = () => {
+                setTimeout(() => sendNextFile(pendingFiles, index + 1), 500);
+            };
+            
+            sendFile(fileItem, onComplete);
+        }
 
-            showStatus(`准备发送文件...`, 'success');
+        // 发送文件实现
+        function sendFile(fileItem, onCompleteCallback) {
+            if (!fileItem || !dataChannel || dataChannel.readyState !== 'open') {
+                return;
+            }
+            
+            // 更新文件状态
+            fileItem.status = 'sending';
+            fileItem.progress = 0;
+            updateFileElement(fileItem);
+            updateSendAllButton();
+            
+            const fileElem = document.getElementById(fileItem.id);
+            const progressBar = fileElem.querySelector('.progress-bar');
+            const statusElem = fileElem.querySelector('.file-status');
+            
+            statusElem.textContent = '准备发送...';
             
             const reader = new FileReader();
-            const progressBar = document.querySelector('.progress-bar');
-            const fileStatus = document.querySelector('.file-status');
             
             reader.onprogress = (e) => {
                 if (e.lengthComputable) {
-                    const progress = (e.loaded / e.total) * 100;
+                    const progress = Math.round((e.loaded / e.total) * 100 / 2); // 读取占50%进度
+                    fileItem.progress = progress;
                     progressBar.style.width = `${progress}%`;
-                    fileStatus.textContent = '正在读取文件...';
+                    statusElem.textContent = '正在读取文件...';
                 }
             };
             
             reader.onload = e => {
-                progressBar.style.width = '100%';
-                fileStatus.textContent = '正在发送...';
+                fileItem.progress = 50;
+                progressBar.style.width = '50%';
+                statusElem.textContent = '正在发送...';
                 
                 const fileData = {
                     type: 'file',
-                    name: selectedFile.name,
-                    size: selectedFile.size,
+                    name: fileItem.file.name,
+                    size: fileItem.file.size,
                     data: e.target.result
                 };
                 
                 try {
                     dataChannel.send(JSON.stringify(fileData));
-                    fileStatus.textContent = '发送成功';
-                    showStatus(`文件发送成功: ${selectedFile.name}`, 'success');
+                    
+                    // 更新状态为成功
+                    fileItem.status = 'success';
+                    fileItem.progress = 100;
+                    progressBar.style.width = '100%';
+                    statusElem.textContent = '发送成功';
+                    
+                    // 更新文件元素显示
+                    updateFileElement(fileItem);
+                    updateSendAllButton();
+                    
+                    showStatus(`文件发送成功: ${fileItem.file.name}`, 'success');
+                    
+                    // 调用完成回调
+                    if (typeof onCompleteCallback === 'function') {
+                        onCompleteCallback();
+                    }
                 } catch (error) {
-                    fileStatus.textContent = '发送失败';
+                    // 更新状态为失败
+                    fileItem.status = 'error';
+                    statusElem.textContent = '发送失败';
+                    
+                    // 修改按钮为重试
+                    const actionButtons = fileElem.querySelector('.file-action-buttons');
+                    actionButtons.innerHTML = `
+                        <button class="file-action-btn retry-btn" onclick="sendSingleFile('${fileItem.id}')">重试</button>
+                        <button class="file-action-btn delete-btn" onclick="deleteFile('${fileItem.id}')">删除</button>
+                    `;
+                    
+                    updateSendAllButton();
+                    
                     if (error.name === 'NetworkError' || error.message.includes('Buffer full')) {
-                        showStatus(`文件太大，无法发送。请尝试较小的文件。`, 'error');
+                        showStatus(`文件太大，无法发送: ${fileItem.file.name}`, 'error');
                     } else {
                         showStatus(`发送失败: ${error.message}`, 'error');
+                    }
+                    
+                    // 调用完成回调
+                    if (typeof onCompleteCallback === 'function') {
+                        onCompleteCallback();
                     }
                 }
             };
             
             reader.onerror = () => {
-                fileStatus.textContent = '读取失败';
-                showStatus(`读取文件失败`, 'error');
+                fileItem.status = 'error';
+                statusElem.textContent = '读取失败';
+                
+                // 修改按钮为重试
+                const actionButtons = fileElem.querySelector('.file-action-buttons');
+                actionButtons.innerHTML = `
+                    <button class="file-action-btn retry-btn" onclick="sendSingleFile('${fileItem.id}')">重试</button>
+                    <button class="file-action-btn delete-btn" onclick="deleteFile('${fileItem.id}')">删除</button>
+                `;
+                
+                updateSendAllButton();
+                showStatus(`读取文件失败: ${fileItem.file.name}`, 'error');
+                
+                // 调用完成回调
+                if (typeof onCompleteCallback === 'function') {
+                    onCompleteCallback();
+                }
             };
             
-            reader.readAsDataURL(selectedFile);
+            reader.readAsDataURL(fileItem.file);
+        }
+        
+        // 更新文件元素显示
+        function updateFileElement(fileItem) {
+            const fileElem = document.getElementById(fileItem.id);
+            if (!fileElem) return;
+            
+            const progressBar = fileElem.querySelector('.progress-bar');
+            const statusElem = fileElem.querySelector('.file-status');
+            const actionButtons = fileElem.querySelector('.file-action-buttons');
+            
+            progressBar.style.width = `${fileItem.progress}%`;
+            
+            // 更新状态文本
+            switch (fileItem.status) {
+                case 'pending':
+                    statusElem.textContent = '等待发送';
+                    break;
+                case 'sending':
+                    statusElem.textContent = '发送中...';
+                    break;
+                case 'success':
+                    statusElem.textContent = '发送成功';
+                    break;
+                case 'error':
+                    statusElem.textContent = '发送失败';
+                    break;
+            }
+            
+            // 更新按钮
+            if (fileItem.status === 'success') {
+                actionButtons.innerHTML = `
+                    <button class="file-action-btn delete-btn" onclick="deleteFile('${fileItem.id}')">删除</button>
+                `;
+            } else if (fileItem.status === 'error') {
+                actionButtons.innerHTML = `
+                    <button class="file-action-btn retry-btn" onclick="sendSingleFile('${fileItem.id}')">重试</button>
+                    <button class="file-action-btn delete-btn" onclick="deleteFile('${fileItem.id}')">删除</button>
+                `;
+            } else if (fileItem.status === 'pending') {
+                actionButtons.innerHTML = `
+                    <button class="file-action-btn" onclick="sendSingleFile('${fileItem.id}')" ${!dataChannel || dataChannel.readyState !== 'open' ? 'disabled' : ''}>发送</button>
+                    <button class="file-action-btn delete-btn" onclick="deleteFile('${fileItem.id}')">删除</button>
+                `;
+            }
         }
 
-        // 更新接收文件函数
+        // 接收文件
         function receiveFile(fileData) {
             const link = document.createElement('a');
             link.href = fileData.data;
             link.download = fileData.name;
             link.click();
             
+            // 显示在文件列表中
+            const fileId = 'received-' + Date.now() + '-' + Math.random().toString(36).substring(2, 9);
             const fileList = document.getElementById('fileList');
             const fileSize = formatFileSize(fileData.size);
             
-            const fileItem = document.createElement('div');
-            fileItem.className = 'file-item';
-            fileItem.innerHTML = `
+            // 移除空列表提示
+            const emptyList = document.getElementById('emptyList');
+            if (emptyList) {
+                emptyList.style.display = 'none';
+            }
+            
+            const fileElem = document.createElement('div');
+            fileElem.className = 'file-item';
+            fileElem.id = fileId;
+            fileElem.innerHTML = `
                 <div class="file-header">
                     <div class="file-icon"></div>
                     <div class="file-info">
@@ -958,9 +1179,12 @@
                     <div class="progress-bar" style="width: 100%"></div>
                 </div>
                 <div class="file-status">已接收</div>
+                <div class="file-action-buttons">
+                    <button class="file-action-btn delete-btn" onclick="document.getElementById('${fileId}').remove()">移除</button>
+                </div>
             `;
             
-            fileList.appendChild(fileItem);
+            fileList.appendChild(fileElem);
             showStatus(`已接收文件: ${fileData.name}`, 'success');
         }
         
@@ -990,214 +1214,15 @@
             }, 5000);
         }
 
-        // WebSocket 连接
-        let ws;
-        const devices = new Map();
-        
-        // 初始化 WebSocket 连接
-        function initWebSocket() {
-            // 使用安全的 WebSocket 连接
-            ws = new WebSocket('wss://your-signaling-server.com');
-            
-            ws.onopen = () => {
-                console.log('已连接到信令服务器');
-                // 发送本机信息
-                sendDeviceInfo();
-            };
-            
-            ws.onmessage = (event) => {
-                const message = JSON.parse(event.data);
-                handleSignalingMessage(message);
-            };
-            
-            ws.onclose = () => {
-                console.log('与信令服务器断开连接');
-                // 5秒后尝试重新连接
-                setTimeout(initWebSocket, 5000);
-            };
-        }
-        
-        // 发送本机信息
-        async function sendDeviceInfo() {
-            const deviceInfo = {
-                type: 'device_info',
-                name: getDeviceName(),
-                ip: await getLocalIP(),
-                id: generateDeviceId()
-            };
-            ws.send(JSON.stringify(deviceInfo));
-        }
-        
-        // 获取设备名称
-        function getDeviceName() {
-            // 获取设备类型
-            const userAgent = navigator.userAgent;
-            let deviceType = 'Unknown Device';
-            
-            if (/iPhone|iPad|iPod/.test(userAgent)) {
-                deviceType = 'iOS Device';
-            } else if (/Android/.test(userAgent)) {
-                deviceType = 'Android Device';
-            } else if (/Mac/.test(userAgent)) {
-                deviceType = 'Mac';
-            } else if (/Windows/.test(userAgent)) {
-                deviceType = 'Windows PC';
-            } else if (/Linux/.test(userAgent)) {
-                deviceType = 'Linux PC';
-            }
-            
-            // 添加随机数以区分同类型设备
-            return `${deviceType} ${Math.floor(Math.random() * 1000)}`;
-        }
-        
-        // 生成设备ID
-        function generateDeviceId() {
-            return 'device_' + Math.random().toString(36).substr(2, 9);
-        }
-        
-        // 处理信令消息
-        function handleSignalingMessage(message) {
-            switch (message.type) {
-                case 'device_info':
-                    // 添加或更新设备列表
-                    updateDeviceList(message);
-                    break;
-                case 'device_disconnected':
-                    // 移除断开连接的设备
-                    removeDevice(message.id);
-                    break;
-                case 'offer':
-                    handleOffer(message);
-                    break;
-                case 'answer':
-                    handleAnswer(message);
-                    break;
-                case 'ice_candidate':
-                    handleIceCandidate(message);
-                    break;
-            }
-        }
-        
-        // 更新设备列表
-        function updateDeviceList(deviceInfo) {
-            if (deviceInfo.id === myDeviceId) return; // 排除自己
-            
-            devices.set(deviceInfo.id, deviceInfo);
-            renderDeviceList();
-        }
-        
-        // 移除设备
-        function removeDevice(deviceId) {
-            devices.delete(deviceId);
-            renderDeviceList();
-        }
-        
-        // 渲染设备列表
-        function renderDeviceList() {
-            const deviceList = document.getElementById('deviceList');
-            deviceList.innerHTML = '';
-            
-            devices.forEach(device => {
-                const deviceElement = document.createElement('div');
-                deviceElement.className = 'device-item';
-                deviceElement.onclick = () => connectToDevice(device.id);
-                
-                deviceElement.innerHTML = `
-                    <div class="device-icon"></div>
-                    <div class="device-info">
-                        <div class="device-name">${device.name}</div>
-                        <div class="device-ip">${device.ip}</div>
-                    </div>
-                    <div class="device-status"></div>
-                `;
-                
-                deviceList.appendChild(deviceElement);
-            });
-        }
-        
-        // 连接到设备
-        async function connectToDevice(deviceId) {
-            const device = devices.get(deviceId);
-            if (!device) return;
-            
-            try {
-                // 创建 RTCPeerConnection
-                const peerConnection = new RTCPeerConnection(configuration);
-                
-                // 创建数据通道
-                dataChannel = peerConnection.createDataChannel('fileTransfer');
-                setupDataChannel(dataChannel);
-                
-                // 创建并发送 offer
-                const offer = await peerConnection.createOffer();
-                await peerConnection.setLocalDescription(offer);
-                
-                // 发送 offer 到目标设备
-                ws.send(JSON.stringify({
-                    type: 'offer',
-                    offer: offer,
-                    targetId: deviceId
-                }));
-                
-                showStatus(`正在连接到 ${device.name}...`, 'success');
-            } catch (error) {
-                showStatus(`连接失败: ${error.message}`, 'error');
-            }
-        }
-        
-        // 处理接收到的 offer
-        async function handleOffer(message) {
-            try {
-                const peerConnection = new RTCPeerConnection(configuration);
-                
-                peerConnection.ondatachannel = event => {
-                    dataChannel = event.channel;
-                    setupDataChannel(dataChannel);
-                };
-                
-                await peerConnection.setRemoteDescription(new RTCSessionDescription(message.offer));
-                const answer = await peerConnection.createAnswer();
-                await peerConnection.setLocalDescription(answer);
-                
-                // 发送 answer
-                ws.send(JSON.stringify({
-                    type: 'answer',
-                    answer: answer,
-                    targetId: message.sourceId
-                }));
-            } catch (error) {
-                showStatus(`处理连接请求失败: ${error.message}`, 'error');
-            }
-        }
-        
-        // 处理接收到的 answer
-        async function handleAnswer(message) {
-            try {
-                await peerConnection.setRemoteDescription(new RTCSessionDescription(message.answer));
-            } catch (error) {
-                showStatus(`建立连接失败: ${error.message}`, 'error');
-            }
-        }
-        
-        // 处理 ICE candidate
-        async function handleIceCandidate(message) {
-            try {
-                await peerConnection.addIceCandidate(new RTCIceCandidate(message.candidate));
-            } catch (error) {
-                console.error('添加 ICE candidate 失败:', error);
-            }
-        }
-
         // 初始化
         window.addEventListener('load', () => {
             checkNetworkStatus();
-            initWebSocket();
+            createPeerConnection();
             
             // 监听网络状态变化
             window.addEventListener('online', () => {
                 checkNetworkStatus();
                 showStatus('网络已连接', 'success');
-                initWebSocket(); // 重新连接 WebSocket
             });
             
             window.addEventListener('offline', () => {
@@ -1205,6 +1230,22 @@
                 showStatus('网络已断开', 'error');
             });
         });
+        
+        // 如果对等连接对象接收到数据通道连接
+        peerConnection.ondatachannel = event => {
+            dataChannel = event.channel;
+            setupDataChannel(dataChannel);
+            
+            // 更新所有文件的发送按钮状态
+            fileQueue.forEach(fileItem => {
+                if (fileItem.status === 'pending' || fileItem.status === 'error') {
+                    updateFileElement(fileItem);
+                }
+            });
+            
+            updateSendAllButton();
+        };
     </script>
 </body>
+</html> 
 </html> 
