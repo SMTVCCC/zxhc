@@ -710,124 +710,9 @@
             });
         }
 
-        // 创建对等连接
-        async function createPeerConnection() {
-            // 创建主连接，用于接收新连接请求
-            const mainPC = new RTCPeerConnection(configuration);
-            
-            // 创建数据通道
-            const mainDC = mainPC.createDataChannel('fileTransfer');
-            setupDataChannel(mainDC, 'main');
-            
-            // 处理ICE候选
-            mainPC.onicecandidate = event => {
-                if (event.candidate) {
-                    console.log('ICE候选:', event.candidate);
-                }
-            };
-
-            // 创建并设置本地描述
-            const offer = await mainPC.createOffer();
-            await mainPC.setLocalDescription(offer);
-            
-            // 存储主连接
-            connections['main'] = {
-                connection: mainPC,
-                dataChannel: mainDC,
-                id: 'main',
-                shortId: '',
-                status: 'waiting'
-            };
-            
-            // 生成完整ID
-            const fullId = btoa(JSON.stringify(offer));
-            document.getElementById('localId').textContent = fullId;
-            
-            // 生成短ID (使用哈希算法)
-            const shortId = generateShortId(fullId);
-            document.getElementById('localIdShort').textContent = shortId;
-            connections['main'].shortId = shortId;
-            
-            // 存储完整ID和短ID的映射关系
-            localStorage.setItem(shortId, fullId);
-            
-            // 监听数据通道
-            mainPC.ondatachannel = event => {
-                const receivedDC = event.channel;
-                const connectionId = 'connection-' + Date.now();
-                connections[connectionId] = {
-                    connection: mainPC,
-                    dataChannel: receivedDC,
-                    id: connectionId,
-                    shortId: 'Remote-' + generateShortId(connectionId),
-                    status: 'connected'
-                };
-                
-                setupDataChannel(receivedDC, connectionId);
-                updateConnectionList();
-            };
-        }
-        
-        // 生成短ID
-        function generateShortId(fullId) {
-            // 简单的哈希算法，生成8位短ID
-            let hash = 0;
-            for (let i = 0; i < fullId.length; i++) {
-                const char = fullId.charCodeAt(i);
-                hash = ((hash << 5) - hash) + char;
-                hash = hash & hash; // 转换为32位整数
-            }
-            // 转换为8位的字母数字字符串
-            const characters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
-            let shortId = '';
-            let h = Math.abs(hash);
-            for (let i = 0; i < 8; i++) {
-                shortId += characters.charAt(h % characters.length);
-                h = Math.floor(h / characters.length);
-            }
-            return shortId;
-        }
-        
-        // 复制到剪贴板
-        function copyToClipboard(elementId) {
-            const text = document.getElementById(elementId).textContent;
-            navigator.clipboard.writeText(text).then(() => {
-                showStatus('已复制到剪贴板', 'success');
-            }).catch(err => {
-                showStatus('复制失败: ' + err, 'error');
-            });
-        }
-
-        // 设置数据通道
-        function setupDataChannel(channel, connectionId) {
-            channel.onopen = () => {
-                if (connections[connectionId]) {
-                    connections[connectionId].status = 'connected';
-                }
-                updateConnectionList();
-                showStatus('连接已建立', 'success');
-            };
-
-            channel.onclose = () => {
-                if (connections[connectionId]) {
-                    connections[connectionId].status = 'disconnected';
-                    delete connections[connectionId];
-                }
-                updateConnectionList();
-                showStatus('连接已关闭', 'error');
-            };
-
-            channel.onmessage = event => {
-                const data = JSON.parse(event.data);
-                if (data.type === 'file') {
-                    receiveFile(data, connectionId);
-                }
-            };
-        }
-
-        // 连接到远程对等端
+        // 连接到远程对等端（修改以支持多连接）
         async function connect() {
-            const remoteIdInput = document.getElementById('remoteId').value;
+            const remoteIdInput = document.getElementById('remoteId').value.trim();
             if (!remoteIdInput) {
                 showStatus('请输入对方ID', 'error');
                 return;
@@ -839,10 +724,33 @@
                 return;
             }
             
+            showStatus('正在尝试连接...', 'warning');
+            
             try {
                 // 创建新的连接对象和ID
                 const connectionId = 'connection-' + Date.now();
                 const peerConnection = new RTCPeerConnection(configuration);
+                
+                // 处理ICE候选
+                peerConnection.onicecandidate = event => {
+                    if (event.candidate) {
+                        console.log('新连接的ICE候选:', event.candidate);
+                    }
+                };
+                
+                // 监听连接状态变化
+                peerConnection.oniceconnectionstatechange = () => {
+                    console.log('ICE连接状态:', peerConnection.iceConnectionState);
+                    if (peerConnection.iceConnectionState === 'failed' || 
+                        peerConnection.iceConnectionState === 'disconnected' || 
+                        peerConnection.iceConnectionState === 'closed') {
+                        showStatus('连接失败或已断开', 'error');
+                        if (connections[connectionId]) {
+                            connections[connectionId].status = 'disconnected';
+                            updateConnectionList();
+                        }
+                    }
+                };
                 
                 // 尝试从localStorage获取完整ID
                 let fullRemoteId = localStorage.getItem(remoteIdInput);
@@ -852,14 +760,42 @@
                     fullRemoteId = remoteIdInput;
                 }
                 
-                const remoteOffer = JSON.parse(atob(fullRemoteId));
-                await peerConnection.setRemoteDescription(new RTCSessionDescription(remoteOffer));
+                try {
+                    // 尝试解析远程描述
+                    const remoteOffer = JSON.parse(atob(fullRemoteId));
+                    await peerConnection.setRemoteDescription(new RTCSessionDescription(remoteOffer));
+                } catch (error) {
+                    showStatus(`ID格式错误: ${error.message}`, 'error');
+                    return;
+                }
                 
+                // 创建应答
                 const answer = await peerConnection.createAnswer();
                 await peerConnection.setLocalDescription(answer);
                 
+                // 存储应答，以便对方可以连接
+                const fullAnswerId = btoa(JSON.stringify(answer));
+                const shortAnswerId = generateShortId(fullAnswerId);
+                localStorage.setItem(shortAnswerId, fullAnswerId);
+                
+                // 等待ICE收集完成
+                await waitForIceComplete(peerConnection);
+                
                 // 创建数据通道
-                const dataChannel = peerConnection.createDataChannel('fileTransfer');
+                let dataChannel;
+                try {
+                    dataChannel = peerConnection.createDataChannel('fileTransfer');
+                    
+                    // 监听数据通道事件
+                    dataChannel.onerror = (error) => {
+                        console.error('数据通道错误:', error);
+                        showStatus(`数据通道错误: ${error.message || '未知错误'}`, 'error');
+                    };
+                } catch (error) {
+                    showStatus(`创建数据通道失败: ${error.message}`, 'error');
+                    return;
+                }
+                
                 setupDataChannel(dataChannel, connectionId);
                 
                 // 存储新连接
@@ -867,14 +803,257 @@
                     connection: peerConnection,
                     dataChannel: dataChannel,
                     id: connectionId,
-                    shortId: 'Peer-' + generateShortId(connectionId),
+                    shortId: 'Peer-' + shortAnswerId.substring(0, 4),
                     status: 'connecting'
                 };
                 
+                // 显示我们的应答ID，以便对方可以连接回来
+                document.getElementById('remoteId').value = '';
+                showStatus(`连接中... 如需双向连接，请让对方输入: ${shortAnswerId}`, 'success');
+                
                 updateConnectionList();
-                showStatus('正在连接...', 'success');
             } catch (error) {
-                showStatus('连接失败: ' + error.message, 'error');
+                console.error('连接错误:', error);
+                showStatus(`连接失败: ${error.message || '未知错误'}`, 'error');
+            }
+        }
+        
+        // 等待ICE收集完成
+        function waitForIceComplete(pc) {
+            return new Promise((resolve) => {
+                if (pc.iceGatheringState === 'complete') {
+                    resolve();
+                    return;
+                }
+                
+                const checkState = () => {
+                    if (pc.iceGatheringState === 'complete') {
+                        pc.removeEventListener('icegatheringstatechange', checkState);
+                        resolve();
+                    }
+                };
+                
+                pc.addEventListener('icegatheringstatechange', checkState);
+                
+                // 设置超时，防止无限等待
+                setTimeout(resolve, 5000);
+            });
+        }
+        
+        // 创建对等连接（修改为支持多个连接）
+        async function createPeerConnection() {
+            try {
+                // 创建主连接，用于接收新连接请求
+                const mainPC = new RTCPeerConnection(configuration);
+                
+                // 处理ICE候选
+                mainPC.onicecandidate = event => {
+                    if (event.candidate) {
+                        console.log('主连接ICE候选:', event.candidate);
+                    }
+                };
+                
+                // 监听ICE连接状态
+                mainPC.oniceconnectionstatechange = () => {
+                    console.log('主连接ICE状态:', mainPC.iceConnectionState);
+                };
+                
+                // 监听连接状态
+                mainPC.onconnectionstatechange = () => {
+                    console.log('主连接状态:', mainPC.connectionState);
+                };
+                
+                // 监听数据通道
+                mainPC.ondatachannel = event => {
+                    console.log('接收到新数据通道');
+                    const receivedDC = event.channel;
+                    const connectionId = 'connection-' + Date.now();
+                    
+                    connections[connectionId] = {
+                        connection: mainPC,
+                        dataChannel: receivedDC,
+                        id: connectionId,
+                        shortId: '接入方-' + generateShortId(connectionId).substring(0, 4),
+                        status: 'connected'
+                    };
+                    
+                    setupDataChannel(receivedDC, connectionId);
+                    updateConnectionList();
+                };
+                
+                // 创建数据通道
+                try {
+                    const mainDC = mainPC.createDataChannel('fileTransfer');
+                    setupDataChannel(mainDC, 'main');
+                    
+                    // 创建并设置本地描述
+                    const offer = await mainPC.createOffer();
+                    await mainPC.setLocalDescription(offer);
+                    
+                    // 等待ICE收集完成
+                    await waitForIceComplete(mainPC);
+                    
+                    // 存储主连接
+                    connections['main'] = {
+                        connection: mainPC,
+                        dataChannel: mainDC,
+                        id: 'main',
+                        shortId: '',
+                        status: 'waiting'
+                    };
+                    
+                    // 生成完整ID
+                    const fullId = btoa(JSON.stringify(mainPC.localDescription));
+                    document.getElementById('localId').textContent = fullId;
+                    
+                    // 生成短ID
+                    const shortId = generateShortId(fullId);
+                    document.getElementById('localIdShort').textContent = shortId;
+                    connections['main'].shortId = shortId;
+                    
+                    // 存储完整ID和短ID的映射关系
+                    localStorage.setItem(shortId, fullId);
+                    
+                    return true;
+                } catch (error) {
+                    showStatus(`创建主连接失败: ${error.message}`, 'error');
+                    return false;
+                }
+            } catch (error) {
+                showStatus(`初始化WebRTC失败: ${error.message}`, 'error');
+                return false;
+            }
+        }
+        
+        // 设置数据通道（修改以支持多个连接和错误处理）
+        function setupDataChannel(channel, connectionId) {
+            channel.onopen = () => {
+                console.log(`数据通道已打开 (${connectionId})`);
+                if (connections[connectionId]) {
+                    connections[connectionId].status = 'connected';
+                }
+                updateConnectionList();
+                showStatus('连接已建立', 'success');
+            };
+
+            channel.onclose = () => {
+                console.log(`数据通道已关闭 (${connectionId})`);
+                if (connections[connectionId]) {
+                    connections[connectionId].status = 'disconnected';
+                    
+                    // 主连接关闭时不从列表中移除
+                    if (connectionId !== 'main') {
+                        delete connections[connectionId];
+                    }
+                }
+                updateConnectionList();
+                showStatus('连接已关闭', 'warning');
+            };
+            
+            channel.onerror = (error) => {
+                console.error(`数据通道错误 (${connectionId}):`, error);
+                showStatus(`连接错误: ${error.message || '未知错误'}`, 'error');
+            };
+
+            channel.onmessage = event => {
+                try {
+                    const data = JSON.parse(event.data);
+                    if (data.type === 'file') {
+                        receiveFile(data, connectionId);
+                    } else if (data.type === 'message') {
+                        showStatus(`收到消息: ${data.content}`, 'success');
+                    }
+                } catch (error) {
+                    console.error('解析消息错误:', error);
+                    showStatus('收到无效消息', 'error');
+                }
+            };
+        }
+        
+        // 初始化
+        window.addEventListener('load', async () => {
+            // 清除先前存储的所有连接状态
+            connections = {};
+            
+            await checkNetworkStatus();
+            const success = await createPeerConnection();
+            
+            if (success) {
+                updateConnectionList();
+            } else {
+                showStatus('WebRTC初始化失败，请刷新页面重试', 'error');
+            }
+            
+            // 监听网络状态变化
+            window.addEventListener('online', () => {
+                checkNetworkStatus();
+                showStatus('网络已连接', 'success');
+            });
+            
+            window.addEventListener('offline', () => {
+                checkNetworkStatus();
+                showStatus('网络已断开', 'error');
+            });
+            
+            // 添加连接监测按钮
+            document.querySelector('.card:nth-child(1)').innerHTML += `
+                <button onclick="checkConnections()" style="margin-top: 16px;">检测连接状态</button>
+            `;
+        });
+        
+        // 检查所有连接状态
+        function checkConnections() {
+            let activeCount = 0;
+            let errorCount = 0;
+            
+            Object.values(connections).forEach(conn => {
+                if (conn.connection) {
+                    const state = conn.connection.iceConnectionState || 'unknown';
+                    const dcState = conn.dataChannel ? conn.dataChannel.readyState : 'closed';
+                    
+                    console.log(`连接 ${conn.id} 状态: ${state}, 数据通道: ${dcState}`);
+                    
+                    if (state === 'connected' && dcState === 'open') {
+                        activeCount++;
+                    } else if (state === 'failed' || state === 'disconnected' || state === 'closed' || dcState === 'closed') {
+                        errorCount++;
+                    }
+                }
+            });
+            
+            if (activeCount > 0) {
+                showStatus(`检测完成: ${activeCount}个活动连接, ${errorCount}个问题连接`, 'success');
+            } else if (errorCount > 0) {
+                showStatus('所有连接均存在问题，请尝试重新连接', 'error');
+            } else {
+                showStatus('没有活动连接', 'warning');
+            }
+            
+            updateConnectionList();
+        }
+        
+        // 断开特定连接
+        function disconnectPeer(connectionId) {
+            if (connections[connectionId]) {
+                try {
+                    if (connections[connectionId].dataChannel) {
+                        connections[connectionId].dataChannel.close();
+                    }
+                    if (connections[connectionId].connection) {
+                        connections[connectionId].connection.close();
+                    }
+                    
+                    delete connections[connectionId];
+                    updateConnectionList();
+                    showStatus(`已断开连接`, 'warning');
+                } catch (error) {
+                    console.error('断开连接错误:', error);
+                    showStatus(`断开连接错误: ${error.message}`, 'error');
+                    
+                    // 强制从列表中移除
+                    delete connections[connectionId];
+                    updateConnectionList();
+                }
             }
         }
 
@@ -1345,24 +1524,6 @@
             }, 5000);
         }
 
-        // 初始化
-        window.addEventListener('load', () => {
-            checkNetworkStatus();
-            createPeerConnection();
-            updateConnectionList();
-            
-            // 监听网络状态变化
-            window.addEventListener('online', () => {
-                checkNetworkStatus();
-                showStatus('网络已连接', 'success');
-            });
-            
-            window.addEventListener('offline', () => {
-                checkNetworkStatus();
-                showStatus('网络已断开', 'error');
-            });
-        });
-        
         // 更新连接列表
         function updateConnectionList() {
             const list = document.getElementById('connectionList');
@@ -1390,21 +1551,6 @@
             // 如果没有连接，显示提示
             if (Object.keys(connections).length <= 1) {
                 list.innerHTML = '<div style="color: var(--text-secondary); font-size: 14px; padding: 10px;">没有活动连接</div>';
-            }
-        }
-        
-        // 断开特定连接
-        function disconnectPeer(connectionId) {
-            if (connections[connectionId]) {
-                if (connections[connectionId].dataChannel) {
-                    connections[connectionId].dataChannel.close();
-                }
-                if (connections[connectionId].connection) {
-                    connections[connectionId].connection.close();
-                }
-                delete connections[connectionId];
-                updateConnectionList();
-                showStatus(`已断开连接`, 'warning');
             }
         }
     </script>
