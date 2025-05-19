@@ -843,6 +843,18 @@
         // 创建对等连接（修改为支持多个连接）
         async function createPeerConnection() {
             try {
+                // 确保我们处理了任何旧的连接
+                if (connections['main'] && connections['main'].connection) {
+                    try {
+                        if (connections['main'].dataChannel) {
+                            connections['main'].dataChannel.close();
+                        }
+                        connections['main'].connection.close();
+                    } catch (e) {
+                        console.log('关闭旧连接错误:', e);
+                    }
+                }
+                
                 // 创建主连接，用于接收新连接请求
                 const mainPC = new RTCPeerConnection(configuration);
                 
@@ -883,15 +895,32 @@
                 
                 // 创建数据通道
                 try {
-                    const mainDC = mainPC.createDataChannel('fileTransfer');
+                    const mainDC = mainPC.createDataChannel('fileTransfer', {
+                        ordered: true, // 确保数据按顺序到达
+                        maxRetransmits: 3 // 最多重试3次
+                    });
+                    
                     setupDataChannel(mainDC, 'main');
                     
                     // 创建并设置本地描述
-                    const offer = await mainPC.createOffer();
+                    const offer = await mainPC.createOffer({
+                        iceRestart: true, // 尝试使用ICE重启
+                        offerToReceiveAudio: false,
+                        offerToReceiveVideo: false
+                    });
+                    
                     await mainPC.setLocalDescription(offer);
                     
-                    // 等待ICE收集完成
-                    await waitForIceComplete(mainPC);
+                    // 等待ICE收集完成，最多5秒
+                    await Promise.race([
+                        waitForIceComplete(mainPC),
+                        new Promise(resolve => setTimeout(resolve, 5000))
+                    ]);
+                    
+                    // 确保本地描述已设置
+                    if (!mainPC.localDescription) {
+                        throw new Error('无法设置本地描述');
+                    }
                     
                     // 存储主连接
                     connections['main'] = {
@@ -902,7 +931,7 @@
                         status: 'waiting'
                     };
                     
-                    // 生成完整ID
+                    // 生成完整ID，使用当前的localDescription（可能包含已收集的ICE候选）
                     const fullId = btoa(JSON.stringify(mainPC.localDescription));
                     document.getElementById('localId').textContent = fullId;
                     
@@ -916,13 +945,45 @@
                     
                     return true;
                 } catch (error) {
-                    showStatus(`创建主连接失败: ${error.message}`, 'error');
+                    console.error('创建数据通道或设置描述错误:', error);
+                    showStatus(`初始化错误: ${error.message}`, 'error');
                     return false;
                 }
             } catch (error) {
-                showStatus(`初始化WebRTC失败: ${error.message}`, 'error');
+                console.error('WebRTC初始化错误:', error);
+                showStatus(`WebRTC初始化错误: ${error.message}`, 'error');
                 return false;
             }
+        }
+        
+        // 生成短ID（确保仍然存在这个函数）
+        function generateShortId(fullId) {
+            // 简单的哈希算法，生成8位短ID
+            let hash = 0;
+            for (let i = 0; i < fullId.length; i++) {
+                const char = fullId.charCodeAt(i);
+                hash = ((hash << 5) - hash) + char;
+                hash = hash & hash; // 转换为32位整数
+            }
+            // 转换为8位的字母数字字符串
+            const characters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
+            let shortId = '';
+            let h = Math.abs(hash);
+            for (let i = 0; i < 8; i++) {
+                shortId += characters.charAt(h % characters.length);
+                h = Math.floor(h / characters.length);
+            }
+            return shortId;
+        }
+        
+        // 复制到剪贴板（确保仍然存在这个函数）
+        function copyToClipboard(elementId) {
+            const text = document.getElementById(elementId).textContent;
+            navigator.clipboard.writeText(text).then(() => {
+                showStatus('已复制到剪贴板', 'success');
+            }).catch(err => {
+                showStatus('复制失败: ' + err, 'error');
+            });
         }
         
         // 设置数据通道（修改以支持多个连接和错误处理）
@@ -972,16 +1033,48 @@
         
         // 初始化
         window.addEventListener('load', async () => {
-            // 清除先前存储的所有连接状态
-            connections = {};
-            
-            await checkNetworkStatus();
-            const success = await createPeerConnection();
-            
-            if (success) {
-                updateConnectionList();
-            } else {
-                showStatus('WebRTC初始化失败，请刷新页面重试', 'error');
+            try {
+                // 检查WebRTC支持
+                if (!checkWebRTCSupport()) {
+                    showStatus('您的浏览器不支持WebRTC，请使用Chrome、Firefox、Safari或Edge最新版本', 'error');
+                    return;
+                }
+                
+                // 清除先前存储的所有连接状态
+                connections = {};
+                
+                await checkNetworkStatus();
+                
+                // 尝试初始化，最多3次
+                let success = false;
+                let attempts = 0;
+                let lastError = null;
+                
+                while (!success && attempts < 3) {
+                    try {
+                        attempts++;
+                        success = await createPeerConnection();
+                        if (success) break;
+                    } catch (error) {
+                        console.error(`WebRTC初始化尝试 ${attempts} 失败:`, error);
+                        lastError = error;
+                        // 等待一小段时间再重试
+                        await new Promise(resolve => setTimeout(resolve, 1000));
+                    }
+                }
+                
+                if (success) {
+                    updateConnectionList();
+                    showStatus('WebRTC已初始化，可以开始连接', 'success');
+                } else {
+                    const errorMsg = lastError ? `错误: ${lastError.message}` : '未知错误';
+                    showStatus(`WebRTC初始化失败(${attempts}次尝试): ${errorMsg}。请尝试刷新页面或检查浏览器设置。`, 'error');
+                    showWebRTCTroubleshooter();
+                }
+            } catch (error) {
+                console.error('初始化过程错误:', error);
+                showStatus(`初始化失败: ${error.message}。请刷新页面重试。`, 'error');
+                showWebRTCTroubleshooter();
             }
             
             // 监听网络状态变化
@@ -994,12 +1087,98 @@
                 checkNetworkStatus();
                 showStatus('网络已断开', 'error');
             });
-            
-            // 添加连接监测按钮
-            document.querySelector('.card:nth-child(1)').innerHTML += `
-                <button onclick="checkConnections()" style="margin-top: 16px;">检测连接状态</button>
-            `;
         });
+        
+        // 检查WebRTC支持
+        function checkWebRTCSupport() {
+            return (
+                typeof RTCPeerConnection !== 'undefined' &&
+                typeof RTCSessionDescription !== 'undefined' &&
+                typeof RTCIceCandidate !== 'undefined' &&
+                (navigator.mediaDevices || (navigator.getUserMedia || navigator.webkitGetUserMedia || navigator.mozGetUserMedia))
+            );
+        }
+        
+        // 显示WebRTC故障排除指南
+        function showWebRTCTroubleshooter() {
+            const troubleshooterHTML = `
+                <div class="card card-full" style="margin-top: 20px; background-color: #fff7ed; border-color: #fed7aa;">
+                    <h2>WebRTC故障排除</h2>
+                    <p style="margin-bottom: 12px;">初始化失败可能的原因：</p>
+                    <ol style="margin-left: 20px; margin-bottom: 16px;">
+                        <li>浏览器不支持或禁用了WebRTC</li>
+                        <li>网络环境限制（防火墙、代理等）</li>
+                        <li>STUN服务器无法访问</li>
+                        <li>浏览器权限问题</li>
+                    </ol>
+                    
+                    <p style="margin-bottom: 12px;">尝试以下解决方法：</p>
+                    <ul style="margin-left: 20px; margin-bottom: 16px;">
+                        <li>使用Chrome、Firefox、Safari或Edge最新版浏览器</li>
+                        <li>检查浏览器设置中是否启用了WebRTC（WebRTC或PeerConnection）</li>
+                        <li>暂时关闭防火墙或VPN</li>
+                        <li>尝试在隐私窗口中打开应用</li>
+                        <li>确保两台设备在同一网络环境下</li>
+                        <li>清除浏览器缓存和Cookie</li>
+                    </ul>
+                    
+                    <button onclick="reloadApp()">重新初始化WebRTC</button>
+                </div>
+            `;
+            
+            document.querySelector('.cards-grid').insertAdjacentHTML('beforeend', troubleshooterHTML);
+        }
+        
+        // 重新加载应用
+        function reloadApp() {
+            showStatus('正在重新初始化WebRTC...', 'warning');
+            
+            // 关闭所有现有连接
+            Object.keys(connections).forEach(connId => {
+                try {
+                    if (connections[connId].dataChannel) {
+                        connections[connId].dataChannel.close();
+                    }
+                    if (connections[connId].connection) {
+                        connections[connId].connection.close();
+                    }
+                } catch (error) {
+                    console.error('关闭连接错误:', error);
+                }
+            });
+            
+            // 清空连接列表
+            connections = {};
+            
+            // 移除故障排除指南（如果存在）
+            const troubleshooter = document.querySelector('.card.card-full[style*="background-color: #fff7ed"]');
+            if (troubleshooter) {
+                troubleshooter.remove();
+            }
+            
+            // 延迟一点时间后重新初始化
+            setTimeout(async () => {
+                try {
+                    // 重新检查网络状态
+                    await checkNetworkStatus();
+                    
+                    // 重新创建对等连接
+                    const success = await createPeerConnection();
+                    
+                    if (success) {
+                        updateConnectionList();
+                        showStatus('WebRTC已成功重新初始化', 'success');
+                    } else {
+                        showStatus('WebRTC重新初始化失败', 'error');
+                        showWebRTCTroubleshooter();
+                    }
+                } catch (error) {
+                    console.error('重新初始化错误:', error);
+                    showStatus(`重新初始化失败: ${error.message}`, 'error');
+                    showWebRTCTroubleshooter();
+                }
+            }, 1000);
+        }
         
         // 检查所有连接状态
         function checkConnections() {
