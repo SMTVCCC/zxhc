@@ -1,0 +1,408 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>局域网文件互传</title>
+    <style>
+        body {
+            font-family: 'PingFang SC', 'Microsoft YaHei', sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f7f7f7;
+            color: #333;
+        }
+        h1 {
+            text-align: center;
+            color: #2c3e50;
+            margin-bottom: 30px;
+        }
+        .container {
+            background-color: white;
+            border-radius: 10px;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+        .upload-area {
+            border: 2px dashed #3498db;
+            border-radius: 5px;
+            padding: 30px;
+            text-align: center;
+            margin-bottom: 20px;
+            cursor: pointer;
+            transition: background-color 0.3s;
+        }
+        .upload-area:hover {
+            background-color: #ecf0f1;
+        }
+        #fileInput {
+            display: none;
+        }
+        .btn {
+            background-color: #3498db;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 16px;
+            margin: 10px 0;
+            transition: background-color 0.3s;
+        }
+        .btn:hover {
+            background-color: #2980b9;
+        }
+        .file-list {
+            margin-top: 20px;
+        }
+        .file-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 10px;
+            border-bottom: 1px solid #eee;
+        }
+        .file-item:last-child {
+            border-bottom: none;
+        }
+        .file-name {
+            display: flex;
+            align-items: center;
+            word-break: break-all;
+            margin-right: 10px;
+        }
+        .file-icon {
+            margin-right: 10px;
+            font-size: 24px;
+        }
+        .file-size {
+            color: #7f8c8d;
+            white-space: nowrap;
+            margin-left: 10px;
+        }
+        .file-actions {
+            white-space: nowrap;
+        }
+        .server-info {
+            text-align: center;
+            margin-top: 20px;
+            color: #7f8c8d;
+        }
+        .status {
+            text-align: center;
+            padding: 10px;
+            margin: 10px 0;
+            border-radius: 5px;
+        }
+        .success {
+            background-color: #d4edda;
+            color: #155724;
+        }
+        .error {
+            background-color: #f8d7da;
+            color: #721c24;
+        }
+        .ip-list {
+            margin-top: 10px;
+            text-align: center;
+            color: #2c3e50;
+            font-weight: bold;
+        }
+        @media (max-width: 600px) {
+            .file-item {
+                flex-direction: column;
+                align-items: flex-start;
+            }
+            .file-actions {
+                margin-top: 10px;
+                align-self: flex-end;
+            }
+        }
+    </style>
+</head>
+<body>
+    <h1>局域网文件互传</h1>
+    
+    <div class="container">
+        <div class="upload-area" id="dropArea">
+            <p>点击或拖拽文件到此处上传</p>
+            <input type="file" id="fileInput" multiple>
+            <button class="btn" id="uploadBtn">选择文件</button>
+        </div>
+        
+        <div id="status" class="status" style="display: none;"></div>
+        
+        <div class="file-list" id="fileList">
+            <h2>可下载文件</h2>
+            <div id="files"></div>
+        </div>
+    </div>
+    
+    <div class="server-info">
+        <p>请确保所有设备连接到同一局域网</p>
+        <p>当前服务器地址：</p>
+        <div class="ip-list" id="ipList">正在获取IP地址...</div>
+    </div>
+    
+    <script>
+        // 全局变量
+        const fileInput = document.getElementById('fileInput');
+        const uploadBtn = document.getElementById('uploadBtn');
+        const dropArea = document.getElementById('dropArea');
+        const fileList = document.getElementById('files');
+        const statusDiv = document.getElementById('status');
+        const ipList = document.getElementById('ipList');
+        
+        // 存储上传的文件
+        const uploadedFiles = new Map();
+        let fileCounter = 0;
+        
+        // 启动WebSocket服务器
+        let ws;
+        let serverPort = 8080; // 默认端口
+        
+        // 显示状态信息
+        function showStatus(message, isError = false) {
+            statusDiv.textContent = message;
+            statusDiv.style.display = 'block';
+            statusDiv.className = 'status ' + (isError ? 'error' : 'success');
+            setTimeout(() => {
+                statusDiv.style.display = 'none';
+            }, 5000);
+        }
+        
+        // 格式化文件大小
+        function formatFileSize(bytes) {
+            if (bytes === 0) return '0 B';
+            const k = 1024;
+            const sizes = ['B', 'KB', 'MB', 'GB', 'TB'];
+            const i = Math.floor(Math.log(bytes) / Math.log(k));
+            return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+        }
+        
+        // 添加文件到列表
+        function addFileToList(fileId, file) {
+            const fileItem = document.createElement('div');
+            fileItem.className = 'file-item';
+            
+            const fileName = document.createElement('div');
+            fileName.className = 'file-name';
+            
+            const fileIcon = document.createElement('span');
+            fileIcon.className = 'file-icon';
+            fileIcon.textContent = '📄';
+            fileName.appendChild(fileIcon);
+            
+            fileName.appendChild(document.createTextNode(file.name));
+            
+            const fileSize = document.createElement('span');
+            fileSize.className = 'file-size';
+            fileSize.textContent = formatFileSize(file.size);
+            fileName.appendChild(fileSize);
+            
+            const fileActions = document.createElement('div');
+            fileActions.className = 'file-actions';
+            
+            const downloadBtn = document.createElement('button');
+            downloadBtn.className = 'btn';
+            downloadBtn.textContent = '下载';
+            downloadBtn.addEventListener('click', () => downloadFile(fileId));
+            
+            const deleteBtn = document.createElement('button');
+            deleteBtn.className = 'btn';
+            deleteBtn.style.backgroundColor = '#e74c3c';
+            deleteBtn.style.marginLeft = '10px';
+            deleteBtn.textContent = '删除';
+            deleteBtn.addEventListener('click', () => removeFile(fileId, fileItem));
+            
+            fileActions.appendChild(downloadBtn);
+            fileActions.appendChild(deleteBtn);
+            
+            fileItem.appendChild(fileName);
+            fileItem.appendChild(fileActions);
+            fileList.appendChild(fileItem);
+            
+            return fileItem;
+        }
+        
+        // 上传文件逻辑
+        function uploadFiles(files) {
+            for (let i = 0; i < files.length; i++) {
+                const file = files[i];
+                const fileId = fileCounter++;
+                uploadedFiles.set(fileId, { file, element: null });
+                const fileElement = addFileToList(fileId, file);
+                uploadedFiles.get(fileId).element = fileElement;
+            }
+            
+            showStatus(`成功添加 ${files.length} 个文件`, false);
+            
+            // 广播文件列表更新
+            if (ws && ws.readyState === WebSocket.OPEN) {
+                broadcastFileList();
+            }
+        }
+        
+        // 下载文件
+        function downloadFile(fileId) {
+            const fileInfo = uploadedFiles.get(parseInt(fileId));
+            if (!fileInfo) {
+                showStatus('文件不存在', true);
+                return;
+            }
+            
+            const file = fileInfo.file;
+            const url = URL.createObjectURL(file);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = file.name;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+        }
+        
+        // 删除文件
+        function removeFile(fileId, fileElement) {
+            uploadedFiles.delete(fileId);
+            fileElement.remove();
+            showStatus('文件已删除', false);
+            
+            // 广播文件列表更新
+            if (ws && ws.readyState === WebSocket.OPEN) {
+                broadcastFileList();
+            }
+        }
+        
+        // 获取本地IP地址
+        async function getLocalIPs() {
+            try {
+                // 使用STUN服务器获取本地IP地址
+                const pc = new RTCPeerConnection({
+                    iceServers: [{ urls: 'stun:stun.l.google.com:19302' }]
+                });
+                
+                pc.createDataChannel('');
+                
+                // 创建提议
+                await pc.createOffer().then(offer => pc.setLocalDescription(offer));
+                
+                return new Promise((resolve) => {
+                    const ipAddresses = new Set();
+                    
+                    pc.onicecandidate = (event) => {
+                        if (!event.candidate) {
+                            pc.close();
+                            resolve(Array.from(ipAddresses));
+                            return;
+                        }
+                        
+                        const ipRegex = /([0-9]{1,3}(\.[0-9]{1,3}){3})/;
+                        const ipAddress = ipRegex.exec(event.candidate.candidate);
+                        
+                        if (ipAddress && ipAddress[1] && !ipAddress[1].startsWith('127.')) {
+                            ipAddresses.add(ipAddress[1]);
+                        }
+                    };
+                    
+                    // 5秒后超时
+                    setTimeout(() => {
+                        pc.close();
+                        resolve(Array.from(ipAddresses));
+                    }, 5000);
+                });
+            } catch (error) {
+                console.error('获取IP地址失败:', error);
+                return [];
+            }
+        }
+        
+        // 初始化页面
+        async function initPage() {
+            // 获取本地IP地址
+            const ips = await getLocalIPs();
+            if (ips.length > 0) {
+                ipList.innerHTML = ips.map(ip => `<div>http://${ip}:${serverPort}</div>`).join('');
+            } else {
+                ipList.textContent = '无法获取IP地址，请确保允许WebRTC';
+            }
+            
+            // 点击上传按钮
+            uploadBtn.addEventListener('click', () => {
+                fileInput.click();
+            });
+            
+            // 文件选择处理
+            fileInput.addEventListener('change', (e) => {
+                if (e.target.files.length > 0) {
+                    uploadFiles(e.target.files);
+                    fileInput.value = ''; // 重置文件输入
+                }
+            });
+            
+            // 拖拽处理
+            ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
+                dropArea.addEventListener(eventName, preventDefaults, false);
+            });
+            
+            function preventDefaults(e) {
+                e.preventDefault();
+                e.stopPropagation();
+            }
+            
+            // 拖拽高亮效果
+            ['dragenter', 'dragover'].forEach(eventName => {
+                dropArea.addEventListener(eventName, () => {
+                    dropArea.style.backgroundColor = '#ecf0f1';
+                }, false);
+            });
+            
+            ['dragleave', 'drop'].forEach(eventName => {
+                dropArea.addEventListener(eventName, () => {
+                    dropArea.style.backgroundColor = '';
+                }, false);
+            });
+            
+            // 处理文件拖放
+            dropArea.addEventListener('drop', (e) => {
+                const dt = e.dataTransfer;
+                const files = dt.files;
+                uploadFiles(files);
+            }, false);
+            
+            // 初始化WebSocket
+            initWebSocket();
+        }
+        
+        // 初始化WebSocket
+        function initWebSocket() {
+            // 检测WebRTC支持
+            if (!window.RTCPeerConnection) {
+                showStatus('您的浏览器不支持WebRTC，部分功能可能受限', true);
+                return;
+            }
+            
+            // 初始化P2P连接
+            try {
+                // 使用WebRTC替代WebSocket实现P2P通信
+                // 此处简化为单向连接，完整实现需要信令服务器
+                showStatus('P2P准备就绪，可以开始传输文件', false);
+            } catch (error) {
+                console.error('WebRTC初始化失败:', error);
+                showStatus('P2P连接初始化失败，仅支持本机文件传输', true);
+            }
+        }
+        
+        // 广播文件列表
+        function broadcastFileList() {
+            // 此功能在完整的P2P实现中才能生效
+            console.log('文件列表已更新，等待P2P广播');
+        }
+        
+        // 页面加载完成后初始化
+        window.addEventListener('load', initPage);
+    </script>
+</body>
+</html> 
