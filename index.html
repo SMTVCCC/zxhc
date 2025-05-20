@@ -3,779 +3,893 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>局域网文件互传</title>
+    <title>闪速传输 - 点对点局域网文件传输</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     <style>
         :root {
             --primary-color: #4361ee;
-            --primary-light: #4895ef;
             --secondary-color: #3f37c9;
-            --success-color: #4cc9f0;
-            --danger-color: #f72585;
-            --text-color: #2b2d42;
-            --text-secondary: #6c757d;
+            --accent-color: #4cc9f0;
+            --success-color: #4CAF50;
+            --warning-color: #ff9e00;
+            --error-color: #e63946;
             --bg-color: #f8f9fa;
             --card-bg: #ffffff;
+            --text-color: #333;
+            --text-secondary: #666;
             --border-radius: 12px;
+            --shadow: 0 8px 30px rgba(0, 0, 0, 0.1);
             --transition: all 0.3s ease;
-            --shadow: 0 10px 30px rgba(0, 0, 0, 0.08);
         }
-        
+
         * {
             margin: 0;
             padding: 0;
             box-sizing: border-box;
         }
-        
+
         body {
-            font-family: 'PingFang SC', 'Microsoft YaHei', 'Segoe UI', sans-serif;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
             background-color: var(--bg-color);
             color: var(--text-color);
             line-height: 1.6;
-            padding: 0 20px;
+            min-height: 100vh;
         }
-        
-        .page-container {
-            max-width: 900px;
+
+        .container {
+            max-width: 1000px;
             margin: 0 auto;
-            padding: 40px 20px;
+            padding: 2rem;
         }
-        
-        .app-header {
+
+        .header {
             text-align: center;
-            margin-bottom: 40px;
+            margin-bottom: 2rem;
+            animation: fadeIn 1s ease;
         }
-        
-        .app-title {
+
+        .logo {
             font-size: 2.5rem;
-            color: var(--primary-color);
-            margin-bottom: 10px;
-            font-weight: 700;
-            position: relative;
+            font-weight: bold;
+            background: linear-gradient(45deg, var(--primary-color), var(--accent-color));
+            -webkit-background-clip: text;
+            background-clip: text;
+            color: transparent;
             display: inline-block;
+            margin-bottom: 0.5rem;
         }
-        
-        .app-title::after {
-            content: '';
-            position: absolute;
-            bottom: -10px;
-            left: 50%;
-            transform: translateX(-50%);
-            width: 80px;
-            height: 4px;
-            background: linear-gradient(to right, var(--primary-color), var(--success-color));
-            border-radius: 2px;
-        }
-        
-        .app-subtitle {
+
+        .tagline {
+            font-size: 1.2rem;
             color: var(--text-secondary);
-            font-weight: 400;
-            font-size: 1.1rem;
-            margin-top: 20px;
+            margin-bottom: 1rem;
         }
-        
+
+        .features {
+            display: flex;
+            justify-content: center;
+            gap: 1.5rem;
+            margin-bottom: L1.5rem;
+            flex-wrap: wrap;
+        }
+
+        .feature-item {
+            display: flex;
+            align-items: center;
+            background-color: rgba(67, 97, 238, 0.1);
+            padding: 0.5rem 1rem;
+            border-radius: 50px;
+            font-size: 0.9rem;
+        }
+
+        .feature-item i {
+            margin-right: 0.5rem;
+            color: var(--primary-color);
+        }
+
+        .main-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 1.5rem;
+            margin-bottom: 2rem;
+        }
+
         .card {
             background-color: var(--card-bg);
             border-radius: var(--border-radius);
             box-shadow: var(--shadow);
-            padding: 30px;
-            margin-bottom: 30px;
-            transition: var(--transition);
-        }
-        
-        .card:hover {
-            box-shadow: 0 15px 40px rgba(0, 0, 0, 0.12);
-            transform: translateY(-5px);
-        }
-        
-        .upload-card {
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            text-align: center;
-        }
-        
-        .upload-area {
-            width: 100%;
-            border: 2px dashed var(--primary-light);
-            border-radius: var(--border-radius);
-            padding: 40px;
-            text-align: center;
-            margin-bottom: 20px;
-            cursor: pointer;
-            transition: var(--transition);
-            background-color: rgba(67, 97, 238, 0.05);
-            position: relative;
             overflow: hidden;
-        }
-        
-        .upload-area:hover {
-            border-color: var(--primary-color);
-            background-color: rgba(67, 97, 238, 0.1);
-        }
-        
-        .upload-area.drag-over {
-            border-color: var(--success-color);
-            background-color: rgba(76, 201, 240, 0.15);
-        }
-        
-        .upload-icon {
-            font-size: 60px;
-            margin-bottom: 15px;
-            color: var(--primary-color);
             transition: var(--transition);
-        }
-        
-        .upload-area:hover .upload-icon {
-            transform: scale(1.1);
-        }
-        
-        .upload-text {
-            font-size: 1.2rem;
-            color: var(--text-secondary);
-            margin-bottom: 20px;
-        }
-        
-        #fileInput {
-            display: none;
-        }
-        
-        .btn {
-            background-color: var(--primary-color);
-            color: white;
-            border: none;
-            padding: 12px 30px;
-            border-radius: 8px;
-            cursor: pointer;
-            font-size: 1rem;
-            font-weight: 600;
-            margin: 10px 0;
-            transition: var(--transition);
-            display: inline-flex;
-            align-items: center;
-            justify-content: center;
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
-        }
-        
-        .btn:hover {
-            background-color: var(--secondary-color);
-            transform: translateY(-2px);
-            box-shadow: 0 5px 15px rgba(67, 97, 238, 0.3);
-        }
-        
-        .btn-icon {
-            margin-right: 8px;
-        }
-        
-        .status {
-            width: 100%;
-            text-align: center;
-            padding: 15px;
-            margin: 15px 0;
-            border-radius: var(--border-radius);
-            transition: var(--transition);
-            opacity: 0;
-            transform: translateY(-10px);
-            font-weight: 500;
-        }
-        
-        .status.show {
-            opacity: 1;
-            transform: translateY(0);
-        }
-        
-        .success {
-            background-color: rgba(76, 201, 240, 0.2);
-            color: var(--success-color);
-            border-left: 4px solid var(--success-color);
-        }
-        
-        .error {
-            background-color: rgba(247, 37, 133, 0.2);
-            color: var(--danger-color);
-            border-left: 4px solid var(--danger-color);
-        }
-        
-        .file-list-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 20px;
-            padding-bottom: 15px;
-            border-bottom: 1px solid #eee;
-        }
-        
-        .file-list-title {
-            font-size: 1.3rem;
-            color: var(--text-color);
-            font-weight: 600;
-        }
-        
-        .file-count {
-            background-color: var(--primary-light);
-            color: white;
-            border-radius: 20px;
-            padding: 3px 12px;
-            font-size: 0.9rem;
-            font-weight: 500;
-        }
-        
-        .no-files {
-            text-align: center;
-            padding: 40px 0;
-            color: var(--text-secondary);
-        }
-        
-        .no-files-icon {
-            font-size: 50px;
-            color: #ddd;
-            margin-bottom: 15px;
-        }
-        
-        .file-item {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            padding: 15px 20px;
-            margin-bottom: 10px;
-            border-radius: var(--border-radius);
-            background-color: rgba(255, 255, 255, 0.8);
-            box-shadow: 0 3px 10px rgba(0, 0, 0, 0.04);
-            transition: var(--transition);
-        }
-        
-        .file-item:hover {
-            background-color: white;
-            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.08);
-            transform: translateX(5px);
-        }
-        
-        .file-item:last-child {
-            margin-bottom: 0;
-        }
-        
-        .file-name {
-            display: flex;
-            align-items: center;
-            word-break: break-all;
-            margin-right: 10px;
-            flex: 1;
-        }
-        
-        .file-icon {
-            margin-right: 15px;
-            font-size: 28px;
-            color: var(--primary-color);
-        }
-        
-        .file-info {
+            height: 100%;
             display: flex;
             flex-direction: column;
         }
-        
-        .file-title {
-            font-weight: 500;
-            color: var(--text-color);
-            margin-bottom: 3px;
+
+        .card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 15px 35px rgba(0, 0, 0, 0.15);
         }
-        
-        .file-size {
-            color: var(--text-secondary);
-            font-size: 0.85rem;
-        }
-        
-        .file-actions {
+
+        .card-header {
+            background: linear-gradient(45deg, var(--primary-color), var(--secondary-color));
+            color: white;
+            padding: 1.2rem;
+            font-weight: bold;
+            font-size: 1.2rem;
             display: flex;
             align-items: center;
-            gap: 10px;
         }
-        
-        .btn-small {
-            padding: 8px 18px;
-            font-size: 0.9rem;
+
+        .card-header i {
+            margin-right: 0.8rem;
+            font-size: 1.4rem;
         }
-        
-        .btn-delete {
-            background-color: var(--danger-color);
+
+        .card-body {
+            padding: 1.5rem;
+            flex-grow: 1;
+            display: flex;
+            flex-direction: column;
         }
-        
-        .btn-delete:hover {
-            background-color: #e01b67;
-            box-shadow: 0 5px 15px rgba(247, 37, 133, 0.3);
-        }
-        
-        .server-info {
-            text-align: center;
-            margin-top: 40px;
-            color: var(--text-secondary);
-        }
-        
-        .server-info p {
-            margin-bottom: 8px;
-        }
-        
-        .ip-list {
-            margin-top: 15px;
+
+        .connection-controls,
+        .file-controls {
             display: flex;
             flex-wrap: wrap;
-            justify-content: center;
-            gap: 10px;
+            gap: 0.8rem;
+            margin-bottom: 1rem;
         }
-        
-        .ip-item {
-            background-color: var(--card-bg);
-            color: var(--primary-color);
-            font-weight: 600;
-            padding: 10px 20px;
+
+        input {
+            padding: 0.8rem 1rem;
+            border: 1px solid #ddd;
             border-radius: 8px;
-            box-shadow: var(--shadow);
+            font-size: 0.9rem;
+            outline: none;
+            transition: var(--transition);
+            flex-grow: 1;
+        }
+
+        input:focus {
+            border-color: var(--primary-color);
+            box-shadow: 0 0 0 3px rgba(67, 97, 238, 0.2);
+        }
+
+        button {
+            padding: 0.8rem 1.2rem;
+            border: none;
+            border-radius: 8px;
+            background-color: var(--primary-color);
+            color: white;
+            font-weight: 600;
+            cursor: pointer;
+            transition: var(--transition);
             display: flex;
             align-items: center;
+            justify-content: center;
+            gap: 0.5rem;
         }
-        
-        .ip-icon {
-            margin-right: 8px;
-            color: var(--primary-light);
+
+        button:hover {
+            background-color: var(--secondary-color);
+            transform: translateY(-2px);
         }
-        
+
+        button:disabled {
+            background-color: #ccc;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .button-success {
+            background-color: var(--success-color);
+        }
+
+        .button-success:hover {
+            background-color: #45a049;
+        }
+
+        .button-warning {
+            background-color: var(--warning-color);
+        }
+
+        .button-warning:hover {
+            background-color: #e69500;
+        }
+
+        #my-id-container {
+            margin-top: 1.2rem;
+            background-color: #f8f9fa;
+            padding: 1rem;
+            border-radius: 8px;
+            border-left: 4px solid var(--primary-color);
+        }
+
+        .status-info {
+            display: flex;
+            justify-content: space-between;
+            margin-top: 0.5rem;
+        }
+
+        #connection-status {
+            font-weight: bold;
+        }
+
+        .connected {
+            color: var(--success-color);
+        }
+
+        .disconnected {
+            color: var(--error-color);
+        }
+
+        #send-progress, #file-list {
+            margin-top: 1rem;
+        }
+
+        .file-item {
+            background-color: #f8f9fa;
+            border-radius: 8px;
+            padding: 1rem;
+            margin-bottom: 0.8rem;
+            display: flex;
+            flex-direction: column;
+            border-left: 4px solid var(--accent-color);
+        }
+
+        .file-info {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 0.8rem;
+        }
+
+        .progress-bar {
+            height: 10px;
+            background-color: #e0e0e0;
+            border-radius: 5px;
+            overflow: hidden;
+            margin-top: 0.5rem;
+        }
+
+        .progress {
+            height: 100%;
+            background: linear-gradient(45deg, var(--primary-color), var(--accent-color));
+            width: 0%;
+            transition: width 0.3s ease;
+            border-radius: 5px;
+        }
+
+        .download-btn {
+            display: inline-block;
+            padding: 0.5rem 1rem;
+            background-color: var(--success-color);
+            color: white;
+            text-decoration: none;
+            border-radius: 5px;
+            font-size: 0.9rem;
+            font-weight: 600;
+            margin-top: 0.8rem;
+            align-self: flex-start;
+            transition: var(--transition);
+        }
+
+        .download-btn:hover {
+            background-color: #45a049;
+            transform: translateY(-2px);
+        }
+
+        #status {
+            margin-top: 2rem;
+            padding: 1rem;
+            border-radius: var(--border-radius);
+            background-color: var(--card-bg);
+            box-shadow: var(--shadow);
+            max-height: 300px;
+            overflow-y: auto;
+        }
+
+        #status p {
+            margin-bottom: 0.5rem;
+            padding: 0.5rem;
+            border-radius: 4px;
+            background-color: #f8f9fa;
+            font-family: monospace;
+            font-size: 0.9rem;
+        }
+
+        .file-input-wrapper {
+            position: relative;
+            overflow: hidden;
+            display: inline-block;
+        }
+
+        .file-input-wrapper input[type=file] {
+            position: absolute;
+            left: 0;
+            top: 0;
+            opacity: 0;
+            width: 100%;
+            height: 100%;
+            cursor: pointer;
+        }
+
+        .file-input-wrapper button {
+            padding: 0.8rem 1.2rem;
+            border-radius: 8px;
+            cursor: pointer;
+        }
+
+        .footer {
+            text-align: center;
+            margin-top: 2rem;
+            padding: 1rem;
+            color: var(--text-secondary);
+            font-size: 0.9rem;
+            border-top: 1px solid #eee;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(-20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
         @keyframes pulse {
-            0% { opacity: 0.6; }
-            50% { opacity: 1; }
-            100% { opacity: 0.6; }
+            0% { transform: scale(1); }
+            50% { transform: scale(1.05); }
+            100% { transform: scale(1); }
         }
-        
-        .loading {
-            animation: pulse 1.5s infinite ease-in-out;
+
+        .pulse {
+            animation: pulse 2s infinite;
         }
-        
+
+        /* 响应式调整 */
         @media (max-width: 768px) {
-            .page-container {
-                padding: 30px 15px;
+            .main-grid {
+                grid-template-columns: 1fr;
             }
             
-            .app-title {
-                font-size: 2rem;
-            }
-            
-            .card {
-                padding: 20px;
-            }
-            
-            .upload-area {
-                padding: 30px 15px;
-            }
-            
-            .upload-icon {
-                font-size: 40px;
-            }
-            
-            .upload-text {
-                font-size: 1rem;
-            }
-        }
-        
-        @media (max-width: 576px) {
-            .file-item {
+            .connection-controls,
+            .file-controls {
                 flex-direction: column;
-                align-items: flex-start;
             }
             
-            .file-actions {
-                margin-top: 15px;
-                align-self: stretch;
-                justify-content: space-between;
+            .connection-controls input {
                 width: 100%;
-            }
-            
-            .btn-small {
-                flex: 1;
-                margin: 0;
-            }
-            
-            .ip-list {
-                flex-direction: column;
-                align-items: center;
             }
         }
     </style>
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/remixicon@3.5.0/fonts/remixicon.css">
 </head>
 <body>
-    <div class="page-container">
-        <header class="app-header">
-            <h1 class="app-title">局域网文件互传</h1>
-            <p class="app-subtitle">在同一网络下便捷传输文件，无需云存储</p>
-        </header>
-        
-        <div class="card upload-card">
-            <div class="upload-area" id="dropArea">
-                <i class="ri-upload-cloud-2-line upload-icon"></i>
-                <p class="upload-text">点击或拖拽文件到此处上传</p>
-                <input type="file" id="fileInput" multiple>
-                <button class="btn" id="uploadBtn">
-                    <i class="ri-file-add-line btn-icon"></i>选择文件
-                </button>
+    <div class="container">
+        <div class="header">
+            <div class="logo">闪速传输</div>
+            <div class="tagline">下一代点对点局域网文件传输技术</div>
+            <div class="features">
+                <div class="feature-item"><i class="fas fa-bolt"></i> 超高速传输</div>
+                <div class="feature-item"><i class="fas fa-shield-alt"></i> 端到端加密</div>
+                <div class="feature-item"><i class="fas fa-compress-arrows-alt"></i> 无损传输</div>
+                <div class="feature-item"><i class="fas fa-clock"></i> 零延迟</div>
+                <div class="feature-item"><i class="fas fa-server"></i> 无服务器</div>
             </div>
-            
-            <div id="status" class="status" style="display: none;"></div>
         </div>
-        
-        <div class="card">
-            <div class="file-list-header">
-                <h2 class="file-list-title">可下载文件</h2>
-                <span id="fileCount" class="file-count">0</span>
-            </div>
-            
-            <div class="file-list" id="fileList">
-                <div class="no-files" id="noFiles">
-                    <div class="no-files-icon">
-                        <i class="ri-file-forbid-line"></i>
+
+        <div class="main-grid">
+            <div class="card">
+                <div class="card-header">
+                    <i class="fas fa-plug"></i> 连接设置
+                </div>
+                <div class="card-body">
+                    <div class="connection-controls">
+                        <input type="text" id="peer-id" placeholder="输入对方的连接ID">
+                        <button id="create-btn"><i class="fas fa-plus-circle"></i> 创建新连接</button>
+                        <button id="connect-btn"><i class="fas fa-link"></i> 连接到对方</button>
+                        <button id="disconnect-btn" class="button-warning" disabled><i class="fas fa-unlink"></i> 断开连接</button>
                     </div>
-                    <p>暂无可下载文件</p>
+                    <div id="my-id-container" style="display: none;">
+                        <p><strong>您的连接ID:</strong> <span id="my-id" style="font-weight:bold;"></span> 
+                            <button id="copy-id" style="padding: 0.3rem 0.5rem; font-size: 0.8rem; margin-left: 0.5rem;">
+                                <i class="fas fa-copy"></i> 复制
+                            </button>
+                        </p>
+                        <div class="status-info">
+                            <p><strong>状态:</strong> <span id="connection-status" class="disconnected">未连接</span></p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="card-header">
+                    <i class="fas fa-upload"></i> 发送文件
+                </div>
+                <div class="card-body">
+                    <div class="file-controls">
+                        <div class="file-input-wrapper">
+                            <button disabled id="file-select-btn"><i class="fas fa-file"></i> 选择文件</button>
+                            <input type="file" id="file-input" multiple disabled>
+                        </div>
+                        <button id="send-btn" class="button-success" disabled><i class="fas fa-paper-plane"></i> 发送文件</button>
+                    </div>
+                    <div id="send-progress"></div>
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="card-header">
+                    <i class="fas fa-download"></i> 接收的文件
+                </div>
+                <div class="card-body">
+                    <div id="file-list">
+                        <div style="text-align:center; color:#999; padding:2rem 0;">
+                            <i class="fas fa-inbox" style="font-size:2rem; margin-bottom:0.5rem;"></i>
+                            <p>还没有接收到文件</p>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>
-        
-        <div class="server-info">
-            <p>请确保所有设备连接到同一局域网</p>
-            <p>当前服务器地址：</p>
-            <div class="ip-list" id="ipList">
-                <div class="ip-item loading">
-                    <i class="ri-loader-4-line ip-icon"></i>正在获取IP地址...
-                </div>
-            </div>
+
+        <div id="status">
+            <p>系统就绪，等待操作...</p>
+        </div>
+
+        <div class="footer">
+            闪速传输 &copy; 2023 | 安全、快速、无损的点对点文件传输技术
         </div>
     </div>
-    
+
+    <script src="https://unpkg.com/peerjs@1.4.7/dist/peerjs.min.js"></script>
     <script>
-        // 全局变量
-        const fileInput = document.getElementById('fileInput');
-        const uploadBtn = document.getElementById('uploadBtn');
-        const dropArea = document.getElementById('dropArea');
-        const fileList = document.getElementById('fileList');
-        const statusDiv = document.getElementById('status');
-        const ipList = document.getElementById('ipList');
-        const noFiles = document.getElementById('noFiles');
-        const fileCount = document.getElementById('fileCount');
-        
-        // 存储上传的文件
-        const uploadedFiles = new Map();
-        let fileCounter = 0;
-        
-        // 启动WebSocket服务器
-        let ws;
-        let serverPort = 8080; // 默认端口
-        
-        // 显示状态信息
-        function showStatus(message, isError = false) {
-            statusDiv.textContent = message;
-            statusDiv.style.display = 'block';
-            statusDiv.className = 'status ' + (isError ? 'error' : 'success') + ' show';
-            setTimeout(() => {
-                statusDiv.className = 'status ' + (isError ? 'error' : 'success');
+        // 初始化变量
+        let peer = null;
+        let conn = null;
+        let myPeerId = null;
+        let fileChunks = {};
+        let currentFile = null;
+        let filesQueue = [];
+
+        // DOM元素
+        const createBtn = document.getElementById('create-btn');
+        const connectBtn = document.getElementById('connect-btn');
+        const disconnectBtn = document.getElementById('disconnect-btn');
+        const peerIdInput = document.getElementById('peer-id');
+        const myIdSpan = document.getElementById('my-id');
+        const myIdContainer = document.getElementById('my-id-container');
+        const connectionStatus = document.getElementById('connection-status');
+        const fileInput = document.getElementById('file-input');
+        const fileSelectBtn = document.getElementById('file-select-btn');
+        const sendBtn = document.getElementById('send-btn');
+        const fileList = document.getElementById('file-list');
+        const sendProgress = document.getElementById('send-progress');
+        const statusElem = document.getElementById('status');
+        const copyIdBtn = document.getElementById('copy-id');
+
+        // 复制ID按钮
+        copyIdBtn.addEventListener('click', () => {
+            const idText = myIdSpan.textContent;
+            navigator.clipboard.writeText(idText).then(() => {
+                const originalText = copyIdBtn.innerHTML;
+                copyIdBtn.innerHTML = '<i class="fas fa-check"></i> 已复制';
                 setTimeout(() => {
-                    statusDiv.style.display = 'none';
-                }, 300);
-            }, 5000);
+                    copyIdBtn.innerHTML = originalText;
+                }, 2000);
+            });
+        });
+
+        // 文件选择按钮同步禁用状态
+        const updateFileSelectBtn = () => {
+            fileSelectBtn.disabled = fileInput.disabled;
+        };
+
+        // 同步文件选择按钮和文件输入框
+        fileSelectBtn.addEventListener('click', () => {
+            fileInput.click();
+        });
+
+        // 日志函数
+        function log(message) {
+            const logElem = document.createElement('p');
+            logElem.textContent = `${new Date().toLocaleTimeString()}: ${message}`;
+            statusElem.appendChild(logElem);
+            statusElem.scrollTop = statusElem.scrollHeight;
         }
-        
-        // 格式化文件大小
-        function formatFileSize(bytes) {
-            if (bytes === 0) return '0 B';
-            const k = 1024;
-            const sizes = ['B', 'KB', 'MB', 'GB', 'TB'];
-            const i = Math.floor(Math.log(bytes) / Math.log(k));
-            return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
-        }
-        
-        // 更新文件计数
-        function updateFileCount() {
-            const count = uploadedFiles.size;
-            fileCount.textContent = count;
-            if (count > 0) {
-                noFiles.style.display = 'none';
+
+        // 更新连接状态UI
+        function updateConnectionUI(connected) {
+            if (connected) {
+                connectionStatus.textContent = '已连接';
+                connectionStatus.className = 'connected';
+                disconnectBtn.disabled = false;
+                fileInput.disabled = false;
+                fileSelectBtn.disabled = false;
+                sendBtn.disabled = false;
             } else {
-                noFiles.style.display = 'block';
+                connectionStatus.textContent = '未连接';
+                connectionStatus.className = 'disconnected';
+                disconnectBtn.disabled = true;
+                fileInput.disabled = true;
+                fileSelectBtn.disabled = true;
+                sendBtn.disabled = true;
             }
         }
-        
-        // 获取文件图标
-        function getFileIcon(fileName) {
-            const extension = fileName.split('.').pop().toLowerCase();
+
+        // 创建新连接
+        createBtn.addEventListener('click', () => {
+            createBtn.disabled = true;
+            createBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> 创建中...';
             
-            // 图片文件
-            if (['jpg', 'jpeg', 'png', 'gif', 'bmp', 'svg', 'webp'].includes(extension)) {
-                return 'ri-image-line';
+            if (peer) {
+                peer.destroy();
             }
-            // 文档文件
-            else if (['doc', 'docx', 'odt', 'pdf', 'txt', 'rtf', 'md'].includes(extension)) {
-                return 'ri-file-text-line';
+
+            peer = new Peer(null, {
+                debug: 2
+            });
+
+            peer.on('open', (id) => {
+                myPeerId = id;
+                myIdSpan.textContent = id;
+                myIdContainer.style.display = 'block';
+                log(`连接已创建，您的ID: ${id}`);
+                createBtn.disabled = false;
+                createBtn.innerHTML = '<i class="fas fa-plus-circle"></i> 创建新连接';
+            });
+
+            peer.on('connection', (connection) => {
+                conn = connection;
+                setupConnection();
+                log(`收到来自 ${conn.peer} 的连接请求`);
+            });
+
+            peer.on('error', (err) => {
+                log(`错误: ${err.type} - ${err.message}`);
+                createBtn.disabled = false;
+                createBtn.innerHTML = '<i class="fas fa-plus-circle"></i> 创建新连接';
+            });
+        });
+
+        // 连接到对方
+        connectBtn.addEventListener('click', () => {
+            const peerId = peerIdInput.value.trim();
+            if (!peerId) {
+                log('请输入有效的连接ID');
+                peerIdInput.focus();
+                peerIdInput.style.borderColor = 'var(--error-color)';
+                setTimeout(() => {
+                    peerIdInput.style.borderColor = '';
+                }, 2000);
+                return;
             }
-            // 表格文件
-            else if (['xls', 'xlsx', 'csv'].includes(extension)) {
-                return 'ri-file-excel-line';
+
+            connectBtn.disabled = true;
+            connectBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> 连接中...';
+
+            if (!peer) {
+                peer = new Peer(null, {
+                    debug: 2
+                });
+
+                peer.on('open', (id) => {
+                    myPeerId = id;
+                    myIdSpan.textContent = id;
+                    myIdContainer.style.display = 'block';
+                    connectToPeer(peerId);
+                });
+
+                peer.on('error', (err) => {
+                    log(`错误: ${err.type} - ${err.message}`);
+                    connectBtn.disabled = false;
+                    connectBtn.innerHTML = '<i class="fas fa-link"></i> 连接到对方';
+                });
+            } else {
+                connectToPeer(peerId);
             }
-            // 视频文件
-            else if (['mp4', 'avi', 'mov', 'wmv', 'flv', 'mkv', 'webm'].includes(extension)) {
-                return 'ri-film-line';
-            }
-            // 音频文件
-            else if (['mp3', 'wav', 'ogg', 'aac', 'flac'].includes(extension)) {
-                return 'ri-music-line';
-            }
-            // 压缩文件
-            else if (['zip', 'rar', '7z', 'tar', 'gz'].includes(extension)) {
-                return 'ri-archive-line';
-            }
-            // 代码文件
-            else if (['html', 'css', 'js', 'ts', 'jsx', 'php', 'py', 'java', 'c', 'cpp'].includes(extension)) {
-                return 'ri-code-line';
-            }
-            // 默认文件
-            return 'ri-file-line';
+        });
+
+        function connectToPeer(peerId) {
+            conn = peer.connect(peerId, {
+                reliable: true
+            });
+            setupConnection();
+            log(`正在连接到: ${peerId}...`);
         }
-        
-        // 添加文件到列表
-        function addFileToList(fileId, file) {
-            const fileItem = document.createElement('div');
-            fileItem.className = 'file-item';
-            
-            const fileName = document.createElement('div');
-            fileName.className = 'file-name';
-            
-            const fileIcon = document.createElement('i');
-            fileIcon.className = `file-icon ${getFileIcon(file.name)}`;
-            fileName.appendChild(fileIcon);
+
+        // 断开连接
+        disconnectBtn.addEventListener('click', () => {
+            if (conn) {
+                conn.close();
+            }
+            updateConnectionUI(false);
+            log('连接已断开');
+        });
+
+        // 设置连接事件
+        function setupConnection() {
+            conn.on('open', () => {
+                updateConnectionUI(true);
+                log(`已成功连接到: ${conn.peer}`);
+                connectBtn.disabled = false;
+                connectBtn.innerHTML = '<i class="fas fa-link"></i> 连接到对方';
+                
+                // 清空文件列表显示准备接收
+                fileList.innerHTML = '';
+            });
+
+            conn.on('data', handleIncomingData);
+
+            conn.on('close', () => {
+                updateConnectionUI(false);
+                log('连接已关闭');
+            });
+
+            conn.on('error', (err) => {
+                log(`连接错误: ${err}`);
+                connectBtn.disabled = false;
+                connectBtn.innerHTML = '<i class="fas fa-link"></i> 连接到对方';
+            });
+        }
+
+        // 处理接收到的数据
+        function handleIncomingData(data) {
+            if (data.type === 'file-info') {
+                // 接收新文件信息
+                fileChunks[data.fileId] = {
+                    name: data.fileName,
+                    type: data.fileType,
+                    size: data.fileSize,
+                    chunks: [],
+                    receivedSize: 0,
+                    progress: createProgressElement(data.fileName, data.fileSize)
+                };
+                
+                // 如果是第一个文件，清空"没有文件"提示
+                if (fileList.querySelector('div[style*="text-align:center"]')) {
+                    fileList.innerHTML = '';
+                }
+                
+                log(`准备接收文件: ${data.fileName} (${formatBytes(data.fileSize)})`);
+            } 
+            else if (data.type === 'file-chunk') {
+                // 接收文件块
+                const fileData = fileChunks[data.fileId];
+                if (fileData) {
+                    fileData.chunks[data.chunkIndex] = data.chunk;
+                    fileData.receivedSize += data.chunk.byteLength;
+                    
+                    // 更新进度
+                    const percent = Math.floor((fileData.receivedSize / fileData.size) * 100);
+                    fileData.progress.querySelector('.progress').style.width = `${percent}%`;
+                    fileData.progress.querySelector('.percent').textContent = `${percent}%`;
+                    
+                    // 检查是否收到所有块
+                    if (fileData.receivedSize >= fileData.size) {
+                        saveFile(fileData);
+                    }
+                }
+            }
+        }
+
+        // 创建进度元素
+        function createProgressElement(fileName, fileSize) {
+            const container = document.createElement('div');
+            container.className = 'file-item';
             
             const fileInfo = document.createElement('div');
             fileInfo.className = 'file-info';
             
-            const fileTitle = document.createElement('span');
-            fileTitle.className = 'file-title';
-            fileTitle.textContent = file.name;
-            fileInfo.appendChild(fileTitle);
+            const nameElem = document.createElement('div');
+            nameElem.innerHTML = `<i class="fas fa-file"></i> <strong>${fileName}</strong>`;
             
-            const fileSize = document.createElement('span');
-            fileSize.className = 'file-size';
-            fileSize.textContent = formatFileSize(file.size);
-            fileInfo.appendChild(fileSize);
+            const sizeElem = document.createElement('div');
+            sizeElem.textContent = formatBytes(fileSize);
             
-            fileName.appendChild(fileInfo);
+            fileInfo.appendChild(nameElem);
+            fileInfo.appendChild(sizeElem);
             
-            const fileActions = document.createElement('div');
-            fileActions.className = 'file-actions';
+            const progressContainer = document.createElement('div');
+            progressContainer.style.display = 'flex';
+            progressContainer.style.alignItems = 'center';
+            progressContainer.style.gap = '10px';
             
-            const downloadBtn = document.createElement('button');
-            downloadBtn.className = 'btn btn-small';
-            downloadBtn.innerHTML = '<i class="ri-download-line btn-icon"></i>下载';
-            downloadBtn.addEventListener('click', () => downloadFile(fileId));
+            const progressBar = document.createElement('div');
+            progressBar.className = 'progress-bar';
+            progressBar.style.flexGrow = '1';
             
-            const deleteBtn = document.createElement('button');
-            deleteBtn.className = 'btn btn-small btn-delete';
-            deleteBtn.innerHTML = '<i class="ri-delete-bin-line btn-icon"></i>删除';
-            deleteBtn.addEventListener('click', () => removeFile(fileId, fileItem));
+            const progress = document.createElement('div');
+            progress.className = 'progress';
             
-            fileActions.appendChild(downloadBtn);
-            fileActions.appendChild(deleteBtn);
+            const percentElem = document.createElement('div');
+            percentElem.className = 'percent';
+            percentElem.textContent = '0%';
+            percentElem.style.minWidth = '40px';
+            percentElem.style.textAlign = 'right';
             
-            fileItem.appendChild(fileName);
-            fileItem.appendChild(fileActions);
-            fileList.appendChild(fileItem);
+            progressBar.appendChild(progress);
+            progressContainer.appendChild(progressBar);
+            progressContainer.appendChild(percentElem);
             
-            updateFileCount();
-            return fileItem;
+            container.appendChild(fileInfo);
+            container.appendChild(progressContainer);
+            
+            fileList.appendChild(container);
+            
+            return container;
         }
-        
-        // 上传文件逻辑
-        function uploadFiles(files) {
-            for (let i = 0; i < files.length; i++) {
-                const file = files[i];
-                const fileId = fileCounter++;
-                uploadedFiles.set(fileId, { file, element: null });
-                const fileElement = addFileToList(fileId, file);
-                uploadedFiles.get(fileId).element = fileElement;
-            }
+
+        // 保存文件
+        function saveFile(fileData) {
+            // 合并所有块
+            const chunks = fileData.chunks.filter(chunk => chunk !== undefined);
+            const blob = new Blob(chunks, { type: fileData.type });
             
-            showStatus(`成功添加 ${files.length} 个文件`, false);
+            // 创建下载链接
+            const downloadLink = document.createElement('a');
+            downloadLink.href = URL.createObjectURL(blob);
+            downloadLink.download = fileData.name;
+            downloadLink.className = 'download-btn';
+            downloadLink.innerHTML = '<i class="fas fa-download"></i> 下载文件';
             
-            // 广播文件列表更新
-            if (ws && ws.readyState === WebSocket.OPEN) {
-                broadcastFileList();
-            }
+            // 添加下载按钮
+            fileData.progress.appendChild(downloadLink);
+            
+            // 更新进度显示
+            fileData.progress.querySelector('.percent').innerHTML = '<i class="fas fa-check-circle" style="color:var(--success-color)"></i>';
+            
+            log(`文件接收完成: ${fileData.name}`);
         }
-        
-        // 下载文件
-        function downloadFile(fileId) {
-            const fileInfo = uploadedFiles.get(parseInt(fileId));
-            if (!fileInfo) {
-                showStatus('文件不存在', true);
-                return;
-            }
-            
-            const file = fileInfo.file;
-            const url = URL.createObjectURL(file);
-            const a = document.createElement('a');
-            a.href = url;
-            a.download = file.name;
-            document.body.appendChild(a);
-            a.click();
-            document.body.removeChild(a);
-            URL.revokeObjectURL(url);
-            
-            showStatus(`文件 ${file.name} 开始下载`, false);
-        }
-        
-        // 删除文件
-        function removeFile(fileId, fileElement) {
-            uploadedFiles.delete(fileId);
-            fileElement.remove();
-            updateFileCount();
-            showStatus('文件已删除', false);
-            
-            // 广播文件列表更新
-            if (ws && ws.readyState === WebSocket.OPEN) {
-                broadcastFileList();
-            }
-        }
-        
-        // 获取本地IP地址
-        async function getLocalIPs() {
-            try {
-                // 使用STUN服务器获取本地IP地址
-                const pc = new RTCPeerConnection({
-                    iceServers: [{ urls: 'stun:stun.l.google.com:19302' }]
-                });
-                
-                pc.createDataChannel('');
-                
-                // 创建提议
-                await pc.createOffer().then(offer => pc.setLocalDescription(offer));
-                
-                return new Promise((resolve) => {
-                    const ipAddresses = new Set();
-                    
-                    pc.onicecandidate = (event) => {
-                        if (!event.candidate) {
-                            pc.close();
-                            resolve(Array.from(ipAddresses));
-                            return;
-                        }
-                        
-                        const ipRegex = /([0-9]{1,3}(\.[0-9]{1,3}){3})/;
-                        const ipAddress = ipRegex.exec(event.candidate.candidate);
-                        
-                        if (ipAddress && ipAddress[1] && !ipAddress[1].startsWith('127.')) {
-                            ipAddresses.add(ipAddress[1]);
-                        }
-                    };
-                    
-                    // 5秒后超时
-                    setTimeout(() => {
-                        pc.close();
-                        resolve(Array.from(ipAddresses));
-                    }, 5000);
-                });
-            } catch (error) {
-                console.error('获取IP地址失败:', error);
-                return [];
-            }
-        }
-        
-        // 初始化页面
-        async function initPage() {
-            // 获取本地IP地址
-            ipList.innerHTML = '<div class="ip-item loading"><i class="ri-loader-4-line ip-icon"></i>正在获取IP地址...</div>';
-            
-            const ips = await getLocalIPs();
-            if (ips.length > 0) {
-                ipList.innerHTML = '';
-                ips.forEach(ip => {
-                    const ipItem = document.createElement('div');
-                    ipItem.className = 'ip-item';
-                    ipItem.innerHTML = `<i class="ri-global-line ip-icon"></i>http://${ip}:${serverPort}`;
-                    ipList.appendChild(ipItem);
-                });
-            } else {
-                ipList.innerHTML = '<div class="ip-item"><i class="ri-error-warning-line ip-icon"></i>无法获取IP地址，请确保允许WebRTC</div>';
-            }
-            
-            // 点击上传按钮
-            uploadBtn.addEventListener('click', () => {
-                fileInput.click();
-            });
-            
-            // 文件选择处理
-            fileInput.addEventListener('change', (e) => {
-                if (e.target.files.length > 0) {
-                    uploadFiles(e.target.files);
-                    fileInput.value = ''; // 重置文件输入
+
+        // 文件选择后显示文件名
+        fileInput.addEventListener('change', () => {
+            if (fileInput.files.length > 0) {
+                let fileNames = '';
+                for (let i = 0; i < fileInput.files.length; i++) {
+                    fileNames += fileInput.files[i].name;
+                    if (i < fileInput.files.length - 1) fileNames += ', ';
                 }
-            });
-            
-            // 拖拽处理
-            ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
-                dropArea.addEventListener(eventName, preventDefaults, false);
-            });
-            
-            function preventDefaults(e) {
-                e.preventDefault();
-                e.stopPropagation();
+                
+                // 根据文件数量更新按钮文本
+                if (fileInput.files.length === 1) {
+                    sendBtn.innerHTML = `<i class="fas fa-paper-plane"></i> 发送 "${fileNames}"`;
+                } else {
+                    sendBtn.innerHTML = `<i class="fas fa-paper-plane"></i> 发送 ${fileInput.files.length} 个文件`;
+                }
+            } else {
+                sendBtn.innerHTML = '<i class="fas fa-paper-plane"></i> 发送文件';
             }
-            
-            // 拖拽高亮效果
-            ['dragenter', 'dragover'].forEach(eventName => {
-                dropArea.addEventListener(eventName, () => {
-                    dropArea.classList.add('drag-over');
-                }, false);
-            });
-            
-            ['dragleave', 'drop'].forEach(eventName => {
-                dropArea.addEventListener(eventName, () => {
-                    dropArea.classList.remove('drag-over');
-                }, false);
-            });
-            
-            // 处理文件拖放
-            dropArea.addEventListener('drop', (e) => {
-                const dt = e.dataTransfer;
-                const files = dt.files;
-                uploadFiles(files);
-            }, false);
-            
-            // 初始化WebSocket
-            initWebSocket();
-            
-            // 初始化文件计数
-            updateFileCount();
-        }
-        
-        // 初始化WebSocket
-        function initWebSocket() {
-            // 检测WebRTC支持
-            if (!window.RTCPeerConnection) {
-                showStatus('您的浏览器不支持WebRTC，部分功能可能受限', true);
+        });
+
+        // 发送文件
+        sendBtn.addEventListener('click', () => {
+            const files = fileInput.files;
+            if (files.length === 0) {
+                log('请选择文件');
                 return;
             }
-            
-            // 初始化P2P连接
-            try {
-                // 使用WebRTC替代WebSocket实现P2P通信
-                // 此处简化为单向连接，完整实现需要信令服务器
-                showStatus('P2P准备就绪，可以开始传输文件', false);
-            } catch (error) {
-                console.error('WebRTC初始化失败:', error);
-                showStatus('P2P连接初始化失败，仅支持本机文件传输', true);
+
+            // 将所有文件添加到队列
+            for (let i = 0; i < files.length; i++) {
+                filesQueue.push(files[i]);
             }
+
+            // 更新发送按钮状态
+            sendBtn.disabled = true;
+            sendBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> 准备发送...';
+
+            // 如果没有正在传输的文件，开始传输
+            if (!currentFile) {
+                sendNextFile();
+            }
+        });
+
+        // 发送下一个文件
+        function sendNextFile() {
+            if (filesQueue.length === 0) {
+                currentFile = null;
+                sendBtn.disabled = false;
+                sendBtn.innerHTML = '<i class="fas fa-paper-plane"></i> 发送文件';
+                return;
+            }
+
+            currentFile = filesQueue.shift();
+            const fileId = Date.now() + Math.random().toString(36).substr(2, 9);
+            
+            // 发送文件信息
+            conn.send({
+                type: 'file-info',
+                fileId: fileId,
+                fileName: currentFile.name,
+                fileType: currentFile.type,
+                fileSize: currentFile.size
+            });
+
+            log(`开始发送文件: ${currentFile.name} (${formatBytes(currentFile.size)})`);
+
+            // 创建进度元素
+            const progressContainer = document.createElement('div');
+            progressContainer.className = 'file-item';
+            progressContainer.innerHTML = `
+                <div class="file-info">
+                    <div><i class="fas fa-file-export"></i> <strong>${currentFile.name}</strong></div>
+                    <div>${formatBytes(currentFile.size)}</div>
+                </div>
+                <div style="display:flex; align-items:center; gap:10px;">
+                    <div class="progress-bar" style="flex-grow:1;">
+                        <div class="progress"></div>
+                    </div>
+                    <div class="percent">0%</div>
+                </div>
+            `;
+            sendProgress.appendChild(progressContainer);
+            const progressBar = progressContainer.querySelector('.progress');
+            const percentElem = progressContainer.querySelector('.percent');
+
+            // 分块读取并发送文件
+            const CHUNK_SIZE = 16384; // 16 KB
+            let offset = 0;
+            let chunkIndex = 0;
+
+            function readAndSendChunk() {
+                const fileReader = new FileReader();
+                const chunk = currentFile.slice(offset, offset + CHUNK_SIZE);
+                
+                fileReader.onload = function(e) {
+                    conn.send({
+                        type: 'file-chunk',
+                        fileId: fileId,
+                        chunkIndex: chunkIndex,
+                        chunk: e.target.result
+                    });
+
+                    offset += chunk.size;
+                    chunkIndex++;
+
+                    // 更新进度
+                    const percent = Math.floor((offset / currentFile.size) * 100);
+                    progressBar.style.width = `${percent}%`;
+                    percentElem.textContent = `${percent}%`;
+
+                    if (offset < currentFile.size) {
+                        // 继续发送下一块
+                        readAndSendChunk();
+                    } else {
+                        // 文件发送完成
+                        percentElem.innerHTML = '<i class="fas fa-check-circle" style="color:var(--success-color)"></i>';
+                        log(`文件发送完成: ${currentFile.name}`);
+                        
+                        // 更新发送按钮状态
+                        if (filesQueue.length > 0) {
+                            sendBtn.innerHTML = `<i class="fas fa-spinner fa-spin"></i> 发送中 (${filesQueue.length} 个文件剩余)`;
+                        }
+                        
+                        setTimeout(sendNextFile, 500); // 延迟发送下一个文件
+                    }
+                };
+
+                fileReader.readAsArrayBuffer(chunk);
+            }
+
+            readAndSendChunk();
         }
-        
-        // 广播文件列表
-        function broadcastFileList() {
-            // 此功能在完整的P2P实现中才能生效
-            console.log('文件列表已更新，等待P2P广播');
+
+        // 格式化字节单位
+        function formatBytes(bytes, decimals = 2) {
+            if (bytes === 0) return '0 Bytes';
+            const k = 1024;
+            const dm = decimals < 0 ? 0 : decimals;
+            const sizes = ['Bytes', 'KB', 'MB', 'GB', 'TB'];
+            const i = Math.floor(Math.log(bytes) / Math.log(k));
+            return parseFloat((bytes / Math.pow(k, i)).toFixed(dm)) + ' ' + sizes[i];
         }
-        
-        // 页面加载完成后初始化
-        window.addEventListener('load', initPage);
+
+        // 初始加载时重置UI
+        window.addEventListener('load', () => {
+            updateConnectionUI(false);
+            
+            // 添加欢迎消息
+            log('欢迎使用闪速传输 - 点对点局域网文件传输工具');
+            log('点击"创建新连接"开始使用');
+        });
     </script>
 </body>
 </html> 
