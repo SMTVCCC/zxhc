@@ -5,6 +5,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>闪速传输 - 点对点局域网文件传输</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <!-- 开发工具 -->
+    <script type="module" src="dev-tools.js"></script>
     <style>
         :root {
             --primary-color: #4361ee;
@@ -62,14 +64,14 @@
         .tagline {
             font-size: 1.2rem;
             color: var(--text-secondary);
-            margin-bottom: 1rem;
+            margin-bottom: 1.5rem; /* Increased margin */
         }
 
         .features {
             display: flex;
             justify-content: center;
-            gap: 1.5rem;
-            margin-bottom: L1.5rem;
+            gap: 2rem; /* Increased gap */
+            margin-bottom: 2.5rem; /* Increased margin and corrected L1.5rem */
             flex-wrap: wrap;
         }
 
@@ -80,7 +82,15 @@
             padding: 0.5rem 1rem;
             border-radius: 50px;
             font-size: 0.9rem;
+            animation: featureFadeInUp 0.5s ease forwards;
+            opacity: 0;
         }
+
+        .feature-item:nth-child(1) { animation-delay: 0.1s; }
+        .feature-item:nth-child(2) { animation-delay: 0.2s; }
+        .feature-item:nth-child(3) { animation-delay: 0.3s; }
+        .feature-item:nth-child(4) { animation-delay: 0.4s; }
+        .feature-item:nth-child(5) { animation-delay: 0.5s; }
 
         .feature-item i {
             margin-right: 0.5rem;
@@ -90,6 +100,7 @@
         .main-grid {
             display: grid;
             grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            grid-template-rows: auto auto 1fr;
             gap: 1.5rem;
             margin-bottom: 2rem;
         }
@@ -106,8 +117,8 @@
         }
 
         .card:hover {
-            transform: translateY(-5px);
-            box-shadow: 0 15px 35px rgba(0, 0, 0, 0.15);
+            transform: translateY(-8px) scale(1.02);
+            box-shadow: 0 18px 40px rgba(0, 0, 0, 0.2);
         }
 
         .card-header {
@@ -126,7 +137,7 @@
         }
 
         .card-body {
-            padding: 1.5rem;
+            padding: 1.8rem; /* Increased padding */
             flex-grow: 1;
             display: flex;
             flex-direction: column;
@@ -136,8 +147,8 @@
         .file-controls {
             display: flex;
             flex-wrap: wrap;
-            gap: 0.8rem;
-            margin-bottom: 1rem;
+            gap: 1rem; /* Increased gap */
+            margin-bottom: 1.2rem; /* Increased margin */
         }
 
         input {
@@ -170,15 +181,23 @@
             gap: 0.5rem;
         }
 
-        button:hover {
+        button:hover:not(:disabled) {
             background-color: var(--secondary-color);
             transform: translateY(-2px);
+            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+        }
+
+        button:active:not(:disabled) { /* Added active state */
+            transform: translateY(1px) scale(0.98);
+            box-shadow: 0 1px 2px rgba(0,0,0,0.15);
         }
 
         button:disabled {
             background-color: #ccc;
+            color: #888; /* Darker text for disabled state */
             cursor: not-allowed;
             transform: none;
+            box-shadow: none;
         }
 
         .button-success {
@@ -198,11 +217,12 @@
         }
 
         #my-id-container {
-            margin-top: 1.2rem;
-            background-color: #f8f9fa;
-            padding: 1rem;
-            border-radius: 8px;
-            border-left: 4px solid var(--primary-color);
+            margin-top: 1.5rem; /* Increased margin */
+            background-color: #e9ecef; /* Slightly different background */
+            padding: 1.2rem; /* Increased padding */
+            border-radius: var(--border-radius);
+            border-left: 5px solid var(--primary-color);
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
         }
 
         .status-info {
@@ -228,13 +248,20 @@
         }
 
         .file-item {
-            background-color: #f8f9fa;
-            border-radius: 8px;
-            padding: 1rem;
-            margin-bottom: 0.8rem;
+            background-color: var(--card-bg);
+            border-radius: var(--border-radius);
+            padding: 1.2rem;
+            margin-bottom: 1rem;
             display: flex;
             flex-direction: column;
-            border-left: 4px solid var(--accent-color);
+            border-left: 5px solid var(--accent-color);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+            transition: var(--transition);
+        }
+
+        .file-item:hover {
+            transform: translateY(-4px) scale(1.01);
+            box-shadow: 0 8px 20px rgba(0,0,0,0.12);
         }
 
         .file-info {
@@ -255,8 +282,9 @@
             height: 100%;
             background: linear-gradient(45deg, var(--primary-color), var(--accent-color));
             width: 0%;
-            transition: width 0.3s ease;
+            transition: width 0.3s ease, background-color 0.3s ease;
             border-radius: 5px;
+            animation: progressAnimation 2s linear infinite;
         }
 
         .download-btn {
@@ -279,22 +307,30 @@
         }
 
         #status {
-            margin-top: 2rem;
-            padding: 1rem;
+            margin-top: 2.5rem; /* Increased margin */
+            padding: 1.5rem; /* Increased padding */
             border-radius: var(--border-radius);
-            background-color: var(--card-bg);
+            background-color: #2c3e50; /* Darker background for logs */
+            color: #ecf0f1; /* Light text for logs */
             box-shadow: var(--shadow);
-            max-height: 300px;
+            max-height: 350px; /* Increased max height */
             overflow-y: auto;
+            font-size: 0.85rem; /* Slightly smaller font for logs */
         }
 
         #status p {
-            margin-bottom: 0.5rem;
-            padding: 0.5rem;
-            border-radius: 4px;
-            background-color: #f8f9fa;
-            font-family: monospace;
-            font-size: 0.9rem;
+            margin-bottom: 0.6rem;
+            padding: 0.6rem 0.8rem;
+            border-radius: 6px;
+            background-color: #34495e; /* Darker item background */
+            font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, Courier, monospace;
+            line-height: 1.5;
+            word-break: break-all; /* Prevent overflow */
+            animation: logEntryFadeIn 0.3s ease;
+        }
+
+        #status p:last-child {
+            margin-bottom: 0;
         }
 
         .file-input-wrapper {
@@ -333,6 +369,27 @@
             to { opacity: 1; transform: translateY(0); }
         }
 
+        @keyframes featureFadeInUp {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        @keyframes logEntryFadeIn {
+            from { opacity: 0; transform: scale(0.95); }
+            to { opacity: 1; transform: scale(1); }
+        }
+
+        @keyframes progressAnimation {
+            0% { background-position: 100% 0; }
+            100% { background-position: -100% 0; }
+        }
+
+        @keyframes subtlePulse {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.03); }
+            100% { transform: scale(1); }
+        }
+
         @keyframes pulse {
             0% { transform: scale(1); }
             50% { transform: scale(1.05); }
@@ -341,6 +398,10 @@
 
         .pulse {
             animation: pulse 2s infinite;
+        }
+
+        .pulse-once {
+            animation: subtlePulse 0.5s ease-out;
         }
 
         /* 响应式调整 */
@@ -364,7 +425,7 @@
     <div class="container">
         <div class="header">
             <div class="logo">闪速传输</div>
-            <div class="tagline">下一代点对点局域网文件传输技术</div>
+            <div class="tagline">这是您可以使用的最快的互传工具</div>
             <div class="features">
                 <div class="feature-item"><i class="fas fa-bolt"></i> 超高速传输</div>
                 <div class="feature-item"><i class="fas fa-shield-alt"></i> 端到端加密</div>
@@ -415,7 +476,7 @@
                 </div>
             </div>
 
-            <div class="card">
+            <div class="card" style="grid-row: span 2;">
                 <div class="card-header">
                     <i class="fas fa-download"></i> 接收的文件
                 </div>
@@ -471,9 +532,11 @@
             navigator.clipboard.writeText(idText).then(() => {
                 const originalText = copyIdBtn.innerHTML;
                 copyIdBtn.innerHTML = '<i class="fas fa-check"></i> 已复制';
+                copyIdBtn.classList.add('pulse-once');
                 setTimeout(() => {
                     copyIdBtn.innerHTML = originalText;
-                }, 2000);
+                    copyIdBtn.classList.remove('pulse-once');
+                }, 1500);
             });
         });
 
@@ -523,7 +586,12 @@
                 peer.destroy();
             }
 
-            peer = new Peer(null, {
+            // 生成一个更短的自定义ID
+            const generateShortId = () => {
+                return Math.random().toString(36).substr(2, 6);
+            };
+            const newPeerId = generateShortId();
+            peer = new Peer(newPeerId, {
                 debug: 2
             });
 
@@ -566,7 +634,12 @@
             connectBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> 连接中...';
 
             if (!peer) {
-                peer = new Peer(null, {
+                // 生成一个更短的自定义ID
+                const generateShortId = () => {
+                    return Math.random().toString(36).substr(2, 6);
+                };
+                const newPeerId = generateShortId();
+                peer = new Peer(newPeerId, {
                     debug: 2
                 });
 
@@ -892,4 +965,4 @@
         });
     </script>
 </body>
-</html> 
+</html>
